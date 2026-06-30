@@ -1,0 +1,153 @@
+{
+    "technology": [
+        {"ticker": "AAPL", "company_name": "Apple"},
+        {"ticker": "MSFT", "company_name": "Microsoft"},
+        {"ticker": "NVDA", "company_name": "NVIDIA"},
+        {"ticker": "AMD", "company_name": "AMD"},
+        {"ticker": "AVGO", "company_name": "Broadcom"},
+        {"ticker": "ORCL", "company_name": "Oracle"},
+        {"ticker": "ADBE", "company_name": "Adobe"},
+        {"ticker": "CRM", "company_name": "Salesforce"},
+        {"ticker": "CSCO", "company_name": "Cisco"},
+        {"ticker": "INTC", "company_name": "Intel"},
+        {"ticker": "QCOM", "company_name": "Qualcomm"},
+        {"ticker": "IBM", "company_name": "IBM"},
+        {"ticker": "NOW", "company_name": "ServiceNow"},
+        {"ticker": "SNOW", "company_name": "Snowflake"},
+        {"ticker": "SHOP", "company_name": "Shopify"}
+    ],
+
+    "ai": [
+        {"ticker": "NVDA", "company_name": "NVIDIA"},
+        {"ticker": "AMD", "company_name": "AMD"},
+        {"ticker": "PLTR", "company_name": "Palantir"},
+        {"ticker": "MSFT", "company_name": "Microsoft"},
+        {"ticker": "GOOGL", "company_name": "Alphabet"},
+        {"ticker": "META", "company_name": "Meta"},
+        {"ticker": "AMZN", "company_name": "Amazon"},
+        {"ticker": "TSM", "company_name": "TSMC"},
+        {"ticker": "ASML", "company_name": "ASML"},
+        {"ticker": "SMCI", "company_name": "Super Micro Computer"}
+    ],
+
+    "health": [
+        {"ticker": "LLY", "company_name": "Eli Lilly"},
+        {"ticker": "JNJ", "company_name": "Johnson & Johnson"},
+        {"ticker": "PFE", "company_name": "Pfizer"},
+        {"ticker": "MRK", "company_name": "Merck"},
+        {"ticker": "ABBV", "company_name": "AbbVie"},
+        {"ticker": "TMO", "company_name": "Thermo Fisher"},
+        {"ticker": "DHR", "company_name": "Danaher"},
+        {"ticker": "ISRG", "company_name": "Intuitive Surgical"},
+        {"ticker": "VRTX", "company_name": "Vertex"},
+        {"ticker": "AMGN", "company_name": "Amgen"}
+    ],
+
+    "finance": [
+        {"ticker": "JPM", "company_name": "JPMorgan"},
+        {"ticker": "BAC", "company_name": "Bank of America"},
+        {"ticker": "WFC", "company_name": "Wells Fargo"},
+        {"ticker": "GS", "company_name": "Goldman Sachs"},
+        {"ticker": "MS", "company_name": "Morgan Stanley"},
+        {"ticker": "BLK", "company_name": "BlackRock"},
+        {"ticker": "AXP", "company_name": "American Express"},
+        {"ticker": "SCHW", "company_name": "Charles Schwab"},
+        {"ticker": "C", "company_name": "Citigroup"},
+        {"ticker": "KKR", "company_name": "KKR"}
+    ],
+
+    "energy": [
+        {"ticker": "XOM", "company_name": "ExxonMobil"},
+        {"ticker": "CVX", "company_name": "Chevron"},
+        {"ticker": "COP", "company_name": "ConocoPhillips"},
+        {"ticker": "SLB", "company_name": "SLB"},
+        {"ticker": "EOG", "company_name": "EOG Resources"},
+        {"ticker": "OXY", "company_name": "Occidental Petroleum"},
+        {"ticker": "MPC", "company_name": "Marathon Petroleum"},
+        {"ticker": "PSX", "company_name": "Phillips 66"}
+    ],
+
+    "greenEnergy": [
+        {"ticker": "ENPH", "company_name": "Enphase"},
+        {"ticker": "SEDG", "company_name": "SolarEdge"},
+        {"ticker": "FSLR", "company_name": "First Solar"},
+        {"ticker": "NEE", "company_name": "NextEra Energy"},
+        {"ticker": "BE", "company_name": "Bloom Energy"},
+        {"ticker": "RUN", "company_name": "Sunrun"},
+        {"ticker": "PLUG", "company_name": "Plug Power"},
+        {"ticker": "ARRY", "company_name": "Array Technologies"}
+    ],
+
+    "consumer": [
+        {"ticker": "AMZN", "company_name": "Amazon"},
+        {"ticker": "WMT", "company_name": "Walmart"},
+        {"ticker": "COST", "company_name": "Costco"},
+        {"ticker": "HD", "company_name": "Home Depot"},
+        {"ticker": "MCD", "company_name": "McDonald's"},
+        {"ticker": "NKE", "company_name": "Nike"},
+        {"ticker": "SBUX", "company_name": "Starbucks"},
+        {"ticker": "LOW", "company_name": "Lowe's"}
+    ],
+
+    "defense": [
+        {"ticker": "LMT", "company_name": "Lockheed Martin"},
+        {"ticker": "RTX", "company_name": "RTX"},
+        {"ticker": "NOC", "company_name": "Northrop Grumman"},
+        {"ticker": "GD", "company_name": "General Dynamics"},
+        {"ticker": "LHX", "company_name": "L3Harris"},
+        {"ticker": "HII", "company_name": "Huntington Ingalls"}
+    ],
+
+    "industry": [
+        {"ticker": "CAT", "company_name": "Caterpillar"},
+        {"ticker": "DE", "company_name": "Deere"},
+        {"ticker": "GE", "company_name": "GE Aerospace"},
+        {"ticker": "ETN", "company_name": "Eaton"},
+        {"ticker": "PH", "company_name": "Parker Hannifin"},
+        {"ticker": "HON", "company_name": "Honeywell"}
+    ],
+
+    "aerospace": [
+        {"ticker": "BA", "company_name": "Boeing"},
+        {"ticker": "GE", "company_name": "GE Aerospace"},
+        {"ticker": "SPR", "company_name": "Spirit AeroSystems"},
+        {"ticker": "RKLB", "company_name": "Rocket Lab"},
+        {"ticker": "ACHR", "company_name": "Archer Aviation"},
+        {"ticker": "JOBY", "company_name": "Joby Aviation"}
+    ],
+
+    "entertainment": [
+        {"ticker": "NFLX", "company_name": "Netflix"},
+        {"ticker": "DIS", "company_name": "Disney"},
+        {"ticker": "ROKU", "company_name": "Roku"},
+        {"ticker": "SPOT", "company_name": "Spotify"},
+        {"ticker": "TTWO", "company_name": "Take-Two"},
+        {"ticker": "EA", "company_name": "Electronic Arts"}
+    ],
+
+    "telecom": [
+        {"ticker": "TMUS", "company_name": "T-Mobile"},
+        {"ticker": "VZ", "company_name": "Verizon"},
+        {"ticker": "T", "company_name": "AT&T"},
+        {"ticker": "CHTR", "company_name": "Charter"},
+        {"ticker": "CMCSA", "company_name": "Comcast"}
+    ],
+
+    "crypto": [
+        {"ticker": "COIN", "company_name": "Coinbase"},
+        {"ticker": "MSTR", "company_name": "MicroStrategy"},
+        {"ticker": "MARA", "company_name": "MARA Holdings"},
+        {"ticker": "RIOT", "company_name": "Riot Platforms"},
+        {"ticker": "CLSK", "company_name": "CleanSpark"},
+        {"ticker": "IREN", "company_name": "IREN"}
+    ],
+
+    "other": [
+        {"ticker": "BRK-B", "company_name": "Berkshire Hathaway"},
+        {"ticker": "UBER", "company_name": "Uber"},
+        {"ticker": "ABNB", "company_name": "Airbnb"},
+        {"ticker": "PYPL", "company_name": "PayPal"},
+        {"ticker": "SQ", "company_name": "Block"},
+        {"ticker": "SPGI", "company_name": "S&P Global"}
+    ]
+}

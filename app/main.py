@@ -1,0 +1,33 @@
+from fastapi import FastAPI
+from dotenv import load_dotenv
+
+from app.routes.score import router as score_router
+from app.routes.sectors import router as sectors_router
+from app.routes.test import router as test_router
+from app.routes.portfolio import router as portfolio_router
+
+load_dotenv()
+
+app = FastAPI(
+    title="Kayro Stock API",
+    version="1.0.0"
+)
+
+app.include_router(score_router)
+app.include_router(sectors_router)
+app.include_router(test_router)
+app.include_router(portfolio_router)
+
+
+@app.get("/")
+def root():
+    return {
+        "status": "running"
+    }
+
+
+@app.get("/health")
+def health():
+    return {
+        "status": "ok"
+    }
