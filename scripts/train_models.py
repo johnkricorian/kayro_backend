@@ -1,30 +1,26 @@
 from pathlib import Path
 
+import pandas as pd
 from joblib import dump
 from sklearn.metrics import accuracy_score
 from xgboost import XGBClassifier
 
 from app.services.market import fetch_market_data
-from app.services.ml import FEATURES, build_features
-
+from app.services.ml import (
+    FEATURES,
+    build_features,
+    build_backtest
+)
 
 MODEL_DIR = (
-    Path(__file__)
-    .resolve()
-    .parent.parent
+    Path(__file__).resolve().parent.parent
     / "app"
     / "models"
 )
 
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
-
-HORIZONS = [
-    4,
-    7,
-    15,
-    30
-]
+HORIZONS = [4, 7, 15, 30]
 
 
 def train_model(
@@ -32,7 +28,7 @@ def train_model(
     forecast_horizon: int
 ):
 
-    print(f"\nTraining {forecast_horizon}d model...")
+    print(f"\n🚀 Training {forecast_horizon}d model...")
 
     df = fetch_market_data(
         ticker=ticker,
@@ -85,14 +81,56 @@ def train_model(
         verbose=False
     )
 
+    y_pred = model.predict(X_test)
+    y_proba = model.predict_proba(X_test)
+
     accuracy = accuracy_score(
         y_test,
-        model.predict(X_test)
+        y_pred
     )
 
-    model_path = MODEL_DIR / f"xgboost_{forecast_horizon}d.joblib"
+    df_compare = df.iloc[split:].copy()
 
-    dump(model, model_path)
+    df_compare["prediction"] = y_pred
+    df_compare["actual"] = y_test.values
+    df_compare["prediction_confidence"] = (
+        y_proba.max(axis=1) * 100
+    )
+
+    backtest = build_backtest(
+        df_compare=df_compare,
+        forecast_horizon=forecast_horizon
+    )
+
+    feature_importances = (
+        pd.Series(
+            model.feature_importances_,
+            index=FEATURES
+        )
+        .sort_values(ascending=False)
+        .head(10)
+        .to_dict()
+    )
+
+    metadata = {
+        "model": model,
+        "accuracy": accuracy,
+        "training_samples": len(X_train),
+        "test_samples": len(X_test),
+        "features": FEATURES,
+        "feature_importances": feature_importances,
+        "backtest": backtest
+    }
+
+    model_path = (
+        MODEL_DIR
+        / f"xgboost_{forecast_horizon}d.joblib"
+    )
+
+    dump(
+        metadata,
+        model_path
+    )
 
     print(
         f"✅ Saved {model_path.name} "
@@ -104,9 +142,9 @@ def main():
 
     training_symbol = "SPY"
 
-    print("===================================")
-    print(" Kayro Model Trainer")
-    print("===================================")
+    print("======================================")
+    print("      Kayro Model Trainer")
+    print("======================================")
 
     for horizon in HORIZONS:
         train_model(

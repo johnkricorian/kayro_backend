@@ -1,10 +1,8 @@
-import json
-import urllib.request
 import pandas as pd
 
-from xgboost import XGBClassifier
-from sklearn.metrics import accuracy_score
 from app.services.market import fetch_market_data
+from app.services.model_loader import load_model
+
 
 FEATURES = [
     "distance_ma20",
@@ -23,6 +21,7 @@ FEATURES = [
     "trend_slope_50",
     "vol_regime"
 ]
+
 
 def build_features(
     df: pd.DataFrame,
@@ -78,11 +77,11 @@ def build_features(
 
     return df.dropna().reset_index(drop=True)
 
-
 def train_and_predict(
     ticker: str,
     forecast_horizon: int = 4
 ) -> dict:
+    ticker = ticker.upper()
 
     df = fetch_market_data(
         ticker=ticker,
@@ -93,48 +92,26 @@ def train_and_predict(
     if "Date" not in df.columns:
         df = df.rename(columns={"index": "Date"})
 
-    df = build_features(df, forecast_horizon)
+    df = build_features(
+        df=df,
+        forecast_horizon=forecast_horizon
+    )
+
     if len(df) < 80:
         raise ValueError(
             f"Not enough data for {ticker}. Rows after feature engineering: {len(df)}"
         )
+
+    bundle = load_model(forecast_horizon)
+
+    model = bundle["model"]
+    accuracy = float(bundle.get("accuracy", 0))
+    training_samples = int(bundle.get("training_samples", 0))
+    test_samples = int(bundle.get("test_samples", 0))
+    backtest = bundle.get("backtest", {})
+    feature_importances = bundle.get("feature_importances", {})
+
     X = df[FEATURES]
-    y = df["target"]
-
-    split_index = int(len(df) * 0.8)
-
-    X_train = X.iloc[:split_index]
-    X_test = X.iloc[split_index:]
-
-    y_train = y.iloc[:split_index]
-    y_test = y.iloc[split_index:]
-
-    model = XGBClassifier(
-        n_estimators=1200,
-        max_depth=5,
-        learning_rate=0.01,
-        subsample=0.9,
-        colsample_bytree=0.9,
-        gamma=1,
-        reg_alpha=0.1,
-        reg_lambda=1,
-        random_state=42,
-        n_jobs=-1,
-        eval_metric="logloss"
-    )
-
-    model.fit(
-        X_train,
-        y_train,
-        eval_set=[(X_test, y_test)],
-        verbose=False
-    )
-
-    y_pred = model.predict(X_test)
-    y_proba = model.predict_proba(X_test)
-
-    accuracy = accuracy_score(y_test, y_pred)
-    accuracy_pct = round(float(accuracy) * 100, 1)
 
     latest_features = X.iloc[[-1]]
     latest_prediction = int(model.predict(latest_features)[0])
@@ -144,26 +121,12 @@ def train_and_predict(
     probability_down = round(float(latest_proba[0]) * 100, 1)
     confidence = round(float(max(latest_proba)) * 100, 1)
 
-    importances = (
-        pd.Series(model.feature_importances_, index=FEATURES)
-        .sort_values(ascending=False)
-        .head(10)
-    )
-
-    df_compare = df.iloc[split_index:].copy()
-    df_compare["prediction"] = y_pred
-    df_compare["actual"] = y_test.values
-    df_compare["is_correct"] = df_compare["prediction"] == df_compare["actual"]
-    df_compare["prediction_confidence"] = y_proba.max(axis=1) * 100
-
-    backtest = build_backtest(df_compare, forecast_horizon)
-
     latest_rsi = round(float(df.iloc[-1]["RSI"]), 1)
     latest_macd = float(df.iloc[-1]["MACD_diff"])
     latest_vol_regime = float(df.iloc[-1]["vol_regime"])
 
     return {
-        "ticker": ticker.upper(),
+        "ticker": ticker,
         "prediction": {
             "direction": signal_label(probability_up),
             "probability_up": probability_up,
@@ -175,11 +138,11 @@ def train_and_predict(
         "model": {
             "name": "XGBoostClassifier",
             "version": "v1",
-            "status": "trained",
-            "reliability_score": accuracy_pct,
-            "reliability_label": reliability_label(accuracy_pct),
-            "training_samples": int(len(X_train)),
-            "test_samples": int(len(X_test)),
+            "status": "loaded",
+            "reliability_score": round(accuracy * 100, 1),
+            "reliability_label": reliability_label(accuracy * 100),
+            "training_samples": training_samples,
+            "test_samples": test_samples,
             "features_count": len(FEATURES)
         },
         "market_context": {
@@ -195,69 +158,10 @@ def train_and_predict(
                 "feature": feature,
                 "importance": round(float(value), 4)
             }
-            for feature, value in importances.items()
+            for feature, value in feature_importances.items()
         ],
         "disclaimer": "This prediction is for informational purposes only and is not financial advice."
     }
-
-
-def build_backtest(
-    df_compare: pd.DataFrame,
-    forecast_horizon: int
-) -> dict:
-    trades = df_compare[df_compare["prediction"] == 1].copy()
-
-    if trades.empty:
-        return {
-            "win_rate": 0,
-            "average_return": 0,
-            "total_return": 0,
-            "profit_factor": 0,
-            "max_drawdown": 0,
-            "trades": 0,
-            "wins": 0,
-            "losses": 0,
-            "summary": "No trades were triggered by the model."
-        }
-
-    trades["trade_return"] = (
-        trades["future_close"] - trades["Close"]
-    ) / trades["Close"]
-
-    trades["equity_curve"] = (1 + trades["trade_return"]).cumprod()
-
-    wins = trades[trades["trade_return"] > 0]
-    losses = trades[trades["trade_return"] <= 0]
-
-    win_rate = len(wins) / len(trades) * 100
-    average_return = trades["trade_return"].mean() * 100
-    total_return = (trades["equity_curve"].iloc[-1] - 1) * 100
-
-    gross_profit = wins["trade_return"].sum()
-    gross_loss = abs(losses["trade_return"].sum())
-
-    profit_factor = gross_profit / gross_loss if gross_loss > 0 else 999
-
-    rolling_max = trades["equity_curve"].cummax()
-    drawdown = (trades["equity_curve"] - rolling_max) / rolling_max
-    max_drawdown = drawdown.min() * 100
-
-    return {
-        "win_rate": round(float(win_rate), 1),
-        "average_return": round(float(average_return), 2),
-        "total_return": round(float(total_return), 2),
-        "profit_factor": round(float(profit_factor), 2),
-        "max_drawdown": round(float(max_drawdown), 2),
-        "trades": int(len(trades)),
-        "wins": int(len(wins)),
-        "losses": int(len(losses)),
-        "summary": (
-            f"The model triggered {len(trades)} historical trades. "
-            f"{round(win_rate, 1)}% were profitable, with an average return "
-            f"of {round(average_return, 2)}% over {forecast_horizon} days."
-        )
-    }
-
 
 def reliability_label(score: float) -> str:
     if score >= 70:
@@ -268,7 +172,7 @@ def reliability_label(score: float) -> str:
         return "Good"
     if score >= 50:
         return "Fair"
-    return "Weak"
+        return "Weak"
 
 
 def signal_label(probability_up: float) -> str:
