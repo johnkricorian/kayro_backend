@@ -6,11 +6,21 @@ from app.routes.sectors import router as sectors_router
 from app.routes.test import router as test_router
 from app.routes.portfolio import router as portfolio_router
 
+from contextlib import asynccontextmanager
+from app.services.model_loader import warmup_models
+
 load_dotenv()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    warmup_models()
+    yield
+
 
 app = FastAPI(
     title="Kayro Stock API",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 app.include_router(score_router)
