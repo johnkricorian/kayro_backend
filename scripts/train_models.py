@@ -4,50 +4,144 @@ import pandas as pd
 from joblib import dump
 from sklearn.metrics import accuracy_score
 from xgboost import XGBClassifier
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from app.services.market import fetch_market_data
-from app.services.ml import (
-    FEATURES,
-    build_features,
-    build_backtest
-)
+from app.services.ml import FEATURES, build_features
+from app.services.sector_loader import load_sectors
+from app.services.training_loader import load_training_stocks
 
-MODEL_DIR = (
-    Path(__file__).resolve().parent.parent
-    / "app"
-    / "models"
-)
-
+MODEL_DIR = Path(__file__).resolve().parent.parent / "app" / "models"
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
 HORIZONS = [4, 7, 15, 30]
 
 
-def train_model(
+def load_one_stock(
     ticker: str,
-    forecast_horizon: int
-):
+    forecast_horizon: int,
+    period: str
+) -> pd.DataFrame | None:
 
-    print(f"\n🚀 Training {forecast_horizon}d model...")
+    try:
+        print(f"📈 Fetching {ticker}...")
 
-    df = fetch_market_data(
-        ticker=ticker,
-        period="10y",
-        interval="1d"
-    ).reset_index()
+        df = fetch_market_data(
+            ticker=ticker,
+            period=period,
+            interval="1d"
+        ).reset_index()
 
-    if "Date" not in df.columns:
-        df = df.rename(columns={"index": "Date"})
+        if "Date" not in df.columns:
+            df = df.rename(columns={"index": "Date"})
 
-    df = build_features(
-        df=df,
-        forecast_horizon=forecast_horizon
+        df = build_features(
+            df=df,
+            forecast_horizon=forecast_horizon
+        )
+
+        if len(df) < 500:
+            print(f"⚠️ {ticker}: only {len(df)} rows")
+            return None
+
+        df["ticker"] = ticker
+
+        print(f"✅ {ticker}: {len(df)} rows")
+
+        return df
+
+    except Exception as error:
+        print(f"❌ {ticker}: {error}")
+        return None
+
+def unique_training_stocks() -> list[dict]:
+    sectors = load_sectors()
+
+    seen = set()
+    stocks = []
+
+    for sector_stocks in sectors.values():
+        for stock in sector_stocks:
+            ticker = stock["ticker"]
+
+            if ticker not in seen:
+                seen.add(ticker)
+                stocks.append(stock)
+
+    return stocks
+
+def build_training_dataset(
+    forecast_horizon: int,
+    period: str = "10y"
+) -> pd.DataFrame:
+
+    tickers = load_training_stocks()
+
+    if not tickers:
+        raise RuntimeError("training_stocks.json is empty.")
+
+    rows = []
+
+    print(f"\n🚀 Loading {len(tickers)} stocks in parallel...\n")
+
+    max_workers = min(16, len(tickers))
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+
+        futures = {
+            executor.submit(
+                load_one_stock,
+                ticker,
+                forecast_horizon,
+                period
+            ): ticker
+            for ticker in tickers
+        }
+
+        completed = 0
+
+        for future in as_completed(futures):
+
+            ticker = futures[future]
+            completed += 1
+
+            try:
+                result = future.result()
+
+                if result is not None:
+                    rows.append(result)
+
+            except Exception as error:
+                print(f"❌ {ticker}: {error}")
+
+            print(
+                f"[{completed}/{len(tickers)}] {ticker}",
+                end="\r",
+                flush=True
+            )
+
+    print()
+
+    if not rows:
+        raise RuntimeError("No training data collected.")
+
+    dataset = (
+        pd.concat(rows, ignore_index=True)
+        .dropna(subset=FEATURES + ["target"])
     )
 
-    if len(df) < 300:
-        raise RuntimeError(
-            f"Not enough training data ({len(df)} rows)"
-        )
+    print("\n======================================")
+    print("✅ Training dataset ready")
+    print(f"Stocks loaded : {len(rows)}")
+    print(f"Rows          : {len(dataset):,}")
+    print("======================================\n")
+
+    return dataset
+
+def train_model(forecast_horizon: int):
+    print(f"\n🚀 Training {forecast_horizon}d global model...")
+
+    df = build_training_dataset(forecast_horizon)
 
     X = df[FEATURES]
     y = df["target"]
@@ -82,31 +176,10 @@ def train_model(
     )
 
     y_pred = model.predict(X_test)
-    y_proba = model.predict_proba(X_test)
-
-    accuracy = accuracy_score(
-        y_test,
-        y_pred
-    )
-
-    df_compare = df.iloc[split:].copy()
-
-    df_compare["prediction"] = y_pred
-    df_compare["actual"] = y_test.values
-    df_compare["prediction_confidence"] = (
-        y_proba.max(axis=1) * 100
-    )
-
-    backtest = build_backtest(
-        df_compare=df_compare,
-        forecast_horizon=forecast_horizon
-    )
+    accuracy = accuracy_score(y_test, y_pred)
 
     feature_importances = (
-        pd.Series(
-            model.feature_importances_,
-            index=FEATURES
-        )
+        pd.Series(model.feature_importances_, index=FEATURES)
         .sort_values(ascending=False)
         .head(10)
         .to_dict()
@@ -119,40 +192,31 @@ def train_model(
         "test_samples": len(X_test),
         "features": FEATURES,
         "feature_importances": feature_importances,
-        "backtest": backtest
+        "backtest": {
+            "summary": "Backtest disabled for global model. Use a dedicated endpoint for per-ticker backtests."
+        }
     }
 
-    model_path = (
-        MODEL_DIR
-        / f"xgboost_{forecast_horizon}d.joblib"
-    )
+    model_path = MODEL_DIR / f"xgboost_{forecast_horizon}d.joblib"
 
-    dump(
-        metadata,
-        model_path
-    )
+    dump(metadata, model_path)
 
     print(
         f"✅ Saved {model_path.name} "
-        f"(accuracy={accuracy:.2%})"
+        f"accuracy={accuracy:.2%} "
+        f"samples={len(df)}"
     )
 
 
 def main():
-
-    training_symbol = "SPY"
-
     print("======================================")
-    print("      Kayro Model Trainer")
+    print("      Kayro Global Model Trainer")
     print("======================================")
 
     for horizon in HORIZONS:
-        train_model(
-            ticker=training_symbol,
-            forecast_horizon=horizon
-        )
+        train_model(forecast_horizon=horizon)
 
-    print("\n🎉 All models successfully trained.")
+    print("\n🎉 All global models successfully trained.")
 
 
 if __name__ == "__main__":
