@@ -5,6 +5,7 @@ from app.routes.score import router as score_router
 from app.routes.sectors import router as sectors_router
 from app.routes.test import router as test_router
 from app.routes.portfolio import router as portfolio_router
+from app.routes.test_scanner import router as test_scanner_router
 
 from contextlib import asynccontextmanager
 from app.services.model_loader import warmup_models
@@ -27,6 +28,7 @@ app.include_router(score_router)
 app.include_router(sectors_router)
 app.include_router(test_router)
 app.include_router(portfolio_router)
+app.include_router(test_scanner_router)
 
 
 @app.get("/")

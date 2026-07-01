@@ -1,44 +1,59 @@
 import pandas as pd
+import time
 
 from app.services.scoring import build_stock_score
 from app.services.sector_loader import get_sector_stocks
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
+start = time.perf_counter()
 
-def scan_sector(sector: str, limit: int = 20) -> list[dict]:
+def scan_sector(
+    sector: str,
+    limit: int = 20
+) -> list[dict]:
+
     stocks = get_sector_stocks(sector)
 
     results = []
 
-    for stock in stocks:
-        ticker = stock["ticker"]
+    max_workers = min(8, len(stocks))
 
-        try:
-            score = build_stock_score(ticker)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
 
-            results.append({
-                "ticker": ticker,
-                "company_name": stock["company_name"],
-                "score": score.get("final_score", 0),
-                "signal": score.get("signal", "unknown"),
-                "news_score": score.get("alpha_vantage_news", 0),
-                "finbert_score": score.get("finbert_news", 0),
-                "technical_score": score.get("technical_score", 0),
-                "price_volume_score": score.get("price_volume", 0),
-                "media_buzz_score": score.get("media_buzz", 0),
-                "reasons": score.get("reasons", []),
-                "market_pulse": score.get("market_pulse", {}),
-                "top_articles": score.get("top_articles", [])
-            })
+        futures = {
+            executor.submit(
+                build_stock_score,
+                stock["ticker"]
+            ): stock["ticker"]
+            for stock in stocks
+        }
 
-        except Exception as error:
-            print(f"❌ Error on {ticker}: {error}")
+        completed = 0
 
-    if not results:
-        return []
+        for future in as_completed(futures):
 
-    return (
-        pd.DataFrame(results)
-        .sort_values("score", ascending=False)
-        .head(limit)
-        .to_dict(orient="records")
+            ticker = futures[future]
+            completed += 1
+
+            try:
+                score = future.result()
+
+                if score is not None:
+                    results.append(score)
+
+            except Exception as error:
+                print(f"❌ {ticker}: {error}")
+
+            print(
+                f"[{completed}/{len(stocks)}] {ticker}",
+                end="\r",
+                flush=True
+            )
+
+    results.sort(
+        key=lambda stock: stock["final_score"],
+        reverse=True
     )
+    elapsed = time.perf_counter() - start
+    print(f"\n⚡ scan_sector completed in {elapsed:.2f}s")
+    return results[:limit]
