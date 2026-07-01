@@ -2,7 +2,7 @@ from app.services.sentiment import analyze_news_sentiment
 from app.services.market import fetch_market_data
 from app.services.technical import compute_technical_analysis
 from app.services.ml import train_and_predict
-
+from app.services import score_cache
 
 def clamp(value: float, min_value: float = 0, max_value: float = 100) -> float:
     return max(min(float(value), max_value), min_value)
@@ -10,6 +10,15 @@ def clamp(value: float, min_value: float = 0, max_value: float = 100) -> float:
 
 def build_stock_score(ticker: str, forecast_horizon: int = 15) -> dict:
     ticker = ticker.upper()
+
+    cached = score_cache.get(
+        ticker=ticker,
+        forecast_horizon=forecast_horizon
+    )
+
+    if cached is not None:
+        print(f"⚡ Score cache hit {ticker}")
+        return cached
 
     sentiment = analyze_news_sentiment(ticker)
 
@@ -29,14 +38,12 @@ def build_stock_score(ticker: str, forecast_horizon: int = 15) -> dict:
 
     kayro_score = compute_kayro_score(signals)
 
-    return {
+    result = {
         "ticker": ticker,
         "kayro_score": kayro_score,
         "recommendation": recommendation_label(kayro_score),
         "confidence": ml["prediction"]["confidence"],
-
         "signals": signals,
-
         "sentiment": sentiment,
         "technical": technical,
         "prediction": ml["prediction"],
@@ -44,9 +51,16 @@ def build_stock_score(ticker: str, forecast_horizon: int = 15) -> dict:
         "market_context": ml["market_context"],
         "backtest": ml["backtest"],
         "top_features": ml["top_features"],
-
         "disclaimer": "This prediction is for informational purposes only and is not financial advice."
     }
+
+    score_cache.set(
+        ticker=ticker,
+        forecast_horizon=forecast_horizon,
+        value=result
+    )
+
+    return result
 
 
 def build_signals(
