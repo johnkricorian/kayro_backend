@@ -8,6 +8,7 @@ from app.routes.portfolio import router as portfolio_router
 from app.routes.test_scanner import router as test_scanner_router
 from app.database.init_db import init_db
 from app.routes.predictions import router as predictions_router
+from app.routes.evaluation import router as evaluation_router
 
 from contextlib import asynccontextmanager
 from app.services.model_loader import warmup_models
@@ -35,14 +36,13 @@ app.include_router(test_router)
 app.include_router(portfolio_router)
 app.include_router(test_scanner_router)
 app.include_router(predictions_router)
-
+app.include_router(evaluation_router)
 
 @app.get("/")
 def root():
     return {
         "status": "running"
     }
-
 
 @app.get("/health")
 def health():
