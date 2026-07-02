@@ -6,6 +6,7 @@ from app.routes.sectors import router as sectors_router
 from app.routes.test import router as test_router
 from app.routes.portfolio import router as portfolio_router
 from app.routes.test_scanner import router as test_scanner_router
+from app.database.init_db import init_db
 
 from contextlib import asynccontextmanager
 from app.services.model_loader import warmup_models
@@ -14,6 +15,9 @@ load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    print("\n🚀 Initializing database...")
+    init_db()
+    print("\n🚀 Warming up XGBoost models...")
     warmup_models()
     yield
 
