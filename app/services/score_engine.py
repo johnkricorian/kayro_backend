@@ -74,7 +74,6 @@ def build_stock_score(ticker: str, forecast_horizon: int = 15) -> dict:
 
     return result
 
-
 def build_signals(
     sentiment: dict,
     technical: dict,

@@ -88,8 +88,6 @@ def warmup_models():
             "No XGBoost models found in app/models"
         )
 
-    print("\n🚀 Warming up XGBoost models...\n")
-
     for horizon in models:
         load_model(horizon)
 

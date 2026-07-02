@@ -201,3 +201,104 @@ def get_global_stats() -> dict:
 
     finally:
         db.close()
+
+
+def get_ticker_stats(ticker: str) -> dict:
+    ticker = ticker.upper()
+    db = SessionLocal()
+
+    try:
+        query = db.query(Prediction).filter(Prediction.ticker == ticker)
+
+        total = query.count()
+
+        evaluated = (
+            query
+            .filter(Prediction.prediction_correct.is_not(None))
+            .count()
+        )
+
+        correct = (
+            query
+            .filter(Prediction.prediction_correct.is_(True))
+            .count()
+        )
+
+        avg_confidence = (
+            query.with_entities(func.avg(Prediction.confidence))
+            .scalar()
+        ) or 0
+
+        avg_score = (
+            query.with_entities(func.avg(Prediction.kayro_score))
+            .scalar()
+        ) or 0
+
+        accuracy = (
+            round((correct / evaluated) * 100, 2)
+            if evaluated > 0
+            else 0
+        )
+
+        return {
+            "ticker": ticker,
+            "total_predictions": total,
+            "evaluated_predictions": evaluated,
+            "pending_predictions": total - evaluated,
+            "correct_predictions": correct,
+            "accuracy": accuracy,
+            "average_confidence": round(float(avg_confidence), 2),
+            "average_kayro_score": round(float(avg_score), 2)
+        }
+
+    finally:
+        db.close()
+
+from sqlalchemy import func
+
+
+def get_leaderboard(limit: int = 20) -> list[dict]:
+    db = SessionLocal()
+
+    try:
+        rows = (
+            db.query(
+                Prediction.ticker,
+                func.count(Prediction.id).label("total"),
+                func.sum(
+                    func.coalesce(Prediction.prediction_correct, 0)
+                ).label("correct"),
+                func.avg(Prediction.confidence).label("avg_confidence"),
+                func.avg(Prediction.kayro_score).label("avg_score"),
+            )
+            .filter(Prediction.prediction_correct.is_not(None))
+            .group_by(Prediction.ticker)
+            .all()
+        )
+
+        leaderboard = []
+
+        for row in rows:
+            accuracy = (
+                round((row.correct / row.total) * 100, 2)
+                if row.total > 0
+                else 0
+            )
+
+            leaderboard.append({
+                "ticker": row.ticker,
+                "predictions": row.total,
+                "correct_predictions": int(row.correct or 0),
+                "accuracy": accuracy,
+                "average_confidence": round(float(row.avg_confidence or 0), 2),
+                "average_kayro_score": round(float(row.avg_score or 0), 2)
+            })
+
+        return sorted(
+            leaderboard,
+            key=lambda item: item["accuracy"],
+            reverse=True
+        )[:limit]
+
+    finally:
+        db.close()

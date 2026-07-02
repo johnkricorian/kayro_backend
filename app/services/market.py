@@ -1,7 +1,10 @@
 import pandas as pd
 import yfinance as yf
+import time
 
 from app.services.market_cache import get, set
+
+start = time.perf_counter()
 
 def fetch_market_data(
     ticker: str,
@@ -36,5 +39,6 @@ def fetch_market_data(
     df = df.dropna()
 
     set(cache_key, df)
-
+    elapsed = time.perf_counter() - start
+    print(f"\n⚡ Scan completed in {elapsed:.2f}s")
     return df.copy()
