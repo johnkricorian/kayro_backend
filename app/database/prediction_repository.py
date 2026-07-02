@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import desc
 
 from app.database.database import SessionLocal
 from app.database.models import Prediction
-
 
 def save_prediction(
     ticker: str,
@@ -32,6 +32,23 @@ def save_prediction(
 
         db.add(prediction)
         db.commit()
+
+    finally:
+        db.close()
+
+from sqlalchemy import desc
+
+def get_predictions(limit: int = 100):
+
+    db = SessionLocal()
+
+    try:
+        return (
+            db.query(Prediction)
+            .order_by(desc(Prediction.created_at))
+            .limit(limit)
+            .all()
+        )
 
     finally:
         db.close()
