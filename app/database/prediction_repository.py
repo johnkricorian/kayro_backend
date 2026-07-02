@@ -4,6 +4,7 @@ from sqlalchemy import desc
 from app.database.database import SessionLocal
 from app.database.models import Prediction
 from datetime import datetime, timedelta
+from sqlalchemy import func
 
 def save_prediction(
     ticker: str,
@@ -136,6 +137,67 @@ def update_prediction_result(
         prediction.evaluated_at = datetime.utcnow()
 
         db.commit()
+
+    finally:
+        db.close()
+
+def get_global_stats() -> dict:
+    db = SessionLocal()
+
+    try:
+        total = db.query(Prediction).count()
+
+        evaluated = (
+            db.query(Prediction)
+            .filter(Prediction.prediction_correct.is_not(None))
+            .count()
+        )
+
+        correct = (
+            db.query(Prediction)
+            .filter(Prediction.prediction_correct.is_(True))
+            .count()
+        )
+
+        avg_confidence = (
+            db.query(func.avg(Prediction.confidence))
+            .scalar()
+        ) or 0
+
+        avg_score = (
+            db.query(func.avg(Prediction.kayro_score))
+            .scalar()
+        ) or 0
+
+        bullish = (
+            db.query(Prediction)
+            .filter(Prediction.predicted_direction.ilike("%bullish%"))
+            .count()
+        )
+
+        bearish = (
+            db.query(Prediction)
+            .filter(Prediction.predicted_direction.ilike("%bearish%"))
+            .count()
+        )
+
+        accuracy = (
+            round((correct / evaluated) * 100, 2)
+            if evaluated > 0
+            else 0
+        )
+
+        return {
+            "total_predictions": total,
+            "evaluated_predictions": evaluated,
+            "pending_predictions": total - evaluated,
+            "correct_predictions": correct,
+            "accuracy": accuracy,
+            "average_confidence": round(float(avg_confidence), 2),
+            "average_kayro_score": round(float(avg_score), 2),
+            "bullish_predictions": bullish,
+            "bearish_predictions": bearish
+        }
 
     finally:
         db.close()
