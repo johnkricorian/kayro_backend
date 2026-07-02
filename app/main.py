@@ -11,6 +11,7 @@ from app.routes.predictions import router as predictions_router
 from app.routes.evaluation import router as evaluation_router
 from app.routes.stats import router as stats_router
 from app.routes.leaderboard import router as leaderboard_router
+from app.routes.portfolio_positions import router as portfolio_positions_router
 
 from contextlib import asynccontextmanager
 from app.services.model_loader import warmup_models
@@ -41,6 +42,7 @@ app.include_router(predictions_router)
 app.include_router(evaluation_router)
 app.include_router(stats_router)
 app.include_router(leaderboard_router)
+app.include_router(portfolio_positions_router)
 
 @app.get("/")
 def root():

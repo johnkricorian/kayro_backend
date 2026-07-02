@@ -1,10 +1,7 @@
 from datetime import datetime
-
 from sqlalchemy import Boolean, DateTime, Float, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
-
 from app.database.database import Base
-
 
 class Prediction(Base):
     __tablename__ = "predictions"
@@ -56,4 +53,33 @@ class Prediction(Base):
     evaluated_at: Mapped[datetime | None] = mapped_column(
         DateTime,
         nullable=True
+    )
+
+class Prediction(Base):
+    __tablename__ = "predictions"
+
+    ...
+    # ton modèle actuel
+
+
+class PortfolioPosition(Base):
+    __tablename__ = "portfolio_positions"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True
+    )
+
+    ticker: Mapped[str] = mapped_column(
+        String,
+        index=True
+    )
+
+    quantity: Mapped[float] = mapped_column(Float)
+
+    average_price: Mapped[float] = mapped_column(Float)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow
     )
