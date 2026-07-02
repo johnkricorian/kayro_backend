@@ -3,6 +3,7 @@ from app.services.market import fetch_market_data
 from app.services.technical import compute_technical_analysis
 from app.services.ml import train_and_predict
 from app.services import score_cache
+from app.database.prediction_repository import save_prediction
 
 def clamp(value: float, min_value: float = 0, max_value: float = 100) -> float:
     return max(min(float(value), max_value), min_value)
@@ -53,6 +54,17 @@ def build_stock_score(ticker: str, forecast_horizon: int = 15) -> dict:
         "top_features": ml["top_features"],
         "disclaimer": "This prediction is for informational purposes only and is not financial advice."
     }
+
+    save_prediction(
+        ticker=ticker,
+        forecast_horizon=forecast_horizon,
+        predicted_direction=ml["prediction"]["direction"],
+        probability_up=ml["prediction"]["probability_up"],
+        confidence=ml["prediction"]["confidence"],
+        kayro_score=kayro_score,
+        recommendation=recommendation_label(kayro_score),
+        price_at_prediction=ml["market_context"]["latest_close"],
+    )
 
     score_cache.set(
         ticker=ticker,
