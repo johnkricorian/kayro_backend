@@ -27,7 +27,7 @@ def load_one_stock(
 ) -> pd.DataFrame | None:
 
     try:
-        print(f"📈 Fetching {ticker}...")
+        logger.info(f"📈 Fetching {ticker}...")
 
         df = fetch_market_data(
             ticker=ticker,
@@ -44,17 +44,17 @@ def load_one_stock(
         )
 
         if len(df) < 500:
-            print(f"⚠️ {ticker}: only {len(df)} rows")
+            logger.info(f"⚠️ {ticker}: only {len(df)} rows")
             return None
 
         df["ticker"] = ticker
 
-        print(f"✅ {ticker}: {len(df)} rows")
+        logger.info(f"✅ {ticker}: {len(df)} rows")
 
         return df
 
     except Exception as error:
-        print(f"❌ {ticker}: {error}")
+        logger.info(f"❌ {ticker}: {error}")
         return None
 
 def unique_training_stocks() -> list[dict]:
@@ -85,7 +85,7 @@ def build_training_dataset(
 
     rows = []
 
-    print(f"\n🚀 Loading {len(tickers)} stocks in parallel...\n")
+    logger.info(f"\n🚀 Loading {len(tickers)} stocks in parallel...\n")
 
     max_workers = min(16, len(tickers))
 
@@ -115,15 +115,13 @@ def build_training_dataset(
                     rows.append(result)
 
             except Exception as error:
-                print(f"❌ {ticker}: {error}")
+                logger.info(f"❌ {ticker}: {error}")
 
-            print(
+            logger.info(
                 f"[{completed}/{len(tickers)}] {ticker}",
                 end="\r",
                 flush=True
             )
-
-    print()
 
     if not rows:
         raise RuntimeError("No training data collected.")
@@ -202,7 +200,7 @@ def train_model(forecast_horizon: int):
 
     dump(metadata, model_path)
 
-    print(
+    logger.info(
         f"✅ Saved {model_path.name} "
         f"accuracy={accuracy:.2%} "
         f"samples={len(df)}"

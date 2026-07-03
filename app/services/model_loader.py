@@ -3,7 +3,9 @@ from pathlib import Path
 
 from joblib import load
 from xgboost import XGBClassifier
+from app.core.logger import create_logger
 
+logger = create_logger(__name__)
 
 MODEL_DIR = (
     Path(__file__)
@@ -66,7 +68,7 @@ def load_model(
             f"Available models: {available}"
         )
 
-    print(
+    logger.info(
         f"📦 Loading model "
         f"{model_path.name}"
     )
@@ -91,7 +93,7 @@ def warmup_models():
     for horizon in models:
         load_model(horizon)
 
-    print(
+    logger.info(
         f"\n✅ {len(models)} XGBoost model(s) loaded."
     )
 

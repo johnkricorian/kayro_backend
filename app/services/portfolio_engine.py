@@ -1,6 +1,8 @@
 from app.services.sector_loader import load_sectors
 from app.services.score_engine import build_stock_score
+from app.core.logger import create_logger
 
+logger = create_logger(__name__)
 
 def rank_stocks(
     tickers: list[dict],
@@ -31,7 +33,7 @@ def rank_stocks(
             })
 
         except Exception as error:
-            print(f"❌ Portfolio ranking error on {ticker}: {error}")
+            logger.info(f"❌ Portfolio ranking error on {ticker}: {error}")
 
     return sorted(
         results,

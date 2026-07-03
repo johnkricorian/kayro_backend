@@ -3,6 +3,9 @@ import yfinance as yf
 import time
 
 from app.services.market_cache import get, set
+from app.core.logger import create_logger
+
+logger = create_logger(__name__)
 
 start = time.perf_counter()
 
@@ -17,10 +20,10 @@ def fetch_market_data(
     cached = get(cache_key)
 
     if cached is not None:
-        print(f"⚡ Cache hit {ticker}")
+        logger.info(f"⚡ Cache hit {ticker}")
         return cached.copy()
 
-    print(f"⬇️ Download {ticker}")
+    logger.info(f"⬇️ Download {ticker}")
 
     df = yf.download(
         ticker,
@@ -40,5 +43,5 @@ def fetch_market_data(
 
     set(cache_key, df)
     elapsed = time.perf_counter() - start
-    print(f"\n⚡ Scan completed in {elapsed:.2f}s")
+    logger.info(f"\n⚡ Scan completed in {elapsed:.2f}s")
     return df.copy()

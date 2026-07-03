@@ -16,14 +16,17 @@ from app.routes.portfolio_analysis import (router as portfolio_analysis_router)
 
 from contextlib import asynccontextmanager
 from app.services.model_loader import warmup_models
+from app.core.logger import create_logger
+
+logger = create_logger(__name__)
 
 load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("\n🚀 Initializing database...")
+    logger.info("\n🚀 Initializing database...")
     init_db()
-    print("\n🚀 Warming up XGBoost models...")
+    logger.info("\n🚀 Warming up XGBoost models...")
     warmup_models()
     yield
 

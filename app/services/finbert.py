@@ -8,6 +8,9 @@ os.environ["TRANSFORMERS_NO_TF"] = "1"
 import numpy as np
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from app.core.logger import create_logger
+
+logger = create_logger(__name__)
 
 MODEL_NAME = "ProsusAI/finbert"
 LOCAL_MODEL_PATH = Path(os.getenv("FINBERT_MODEL_PATH", "/app/models/finbert"))
@@ -33,13 +36,13 @@ def load_finbert():
         with _lock:
             if _tokenizer is None or _model is None:
                 model_source = get_model_source()
-                print(f"📦 Loading FinBERT from {model_source}")
+                logger.info(f"📦 Loading FinBERT from {model_source}")
 
                 _tokenizer = AutoTokenizer.from_pretrained(model_source)
                 _model = AutoModelForSequenceClassification.from_pretrained(model_source)
                 _model.eval()
 
-                print("✅ FinBERT loaded")
+                logger.info("✅ FinBERT loaded")
 
     return _tokenizer, _model
 

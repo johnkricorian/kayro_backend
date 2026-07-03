@@ -4,6 +4,9 @@ from app.services.technical import compute_technical_analysis
 from app.services.ml import train_and_predict
 from app.services import score_cache
 from app.database.prediction_repository import save_prediction
+from app.core.logger import create_logger
+
+logger = create_logger(__name__)
 
 def clamp(value: float, min_value: float = 0, max_value: float = 100) -> float:
     return max(min(float(value), max_value), min_value)
@@ -18,7 +21,7 @@ def build_stock_score(ticker: str, forecast_horizon: int = 15) -> dict:
     )
 
     if cached is not None:
-        print(f"⚡ Score cache hit {ticker}")
+        logger.info(f"⚡ Score cache hit {ticker}")
         return cached
 
     sentiment = analyze_news_sentiment(ticker)

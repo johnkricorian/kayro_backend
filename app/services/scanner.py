@@ -6,6 +6,9 @@ from app.services.sector_loader import get_sector_stocks
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from app.services import sector_cache
 from app.services.score_engine import build_stock_score
+from app.core.logger import create_logger
+
+logger = create_logger(__name__)
 
 start = time.perf_counter()
 
@@ -19,7 +22,7 @@ def scan_sector(
     cached = sector_cache.get(sector)
 
     if cached is not None:
-        print(f"⚡ Sector cache hit {sector}")
+        logger.info(f"⚡ Sector cache hit {sector}")
         return cached[:limit]
 
     stocks = get_sector_stocks(sector)
@@ -49,9 +52,9 @@ def scan_sector(
                     results.append(score)
 
             except Exception as error:
-                print(f"❌ {ticker}: {error}")
+                logger.info(f"❌ {ticker}: {error}")
 
-            print(
+            logger.info(
                 f"[{completed}/{len(stocks)}] {ticker}",
                 end="\r",
                 flush=True
@@ -69,6 +72,6 @@ def scan_sector(
     )
 
     elapsed = time.perf_counter() - start
-    print(f"\n⚡ scan_sector completed in {elapsed:.2f}s")
+    logger.info(f"\n⚡ scan_sector completed in {elapsed:.2f}s")
 
     return results[:limit]
