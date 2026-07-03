@@ -5,7 +5,7 @@ from app.routes.score import router as score_router
 from app.routes.sectors import router as sectors_router
 from app.routes.test import router as test_router
 from app.routes.portfolio import router as portfolio_router
-from app.routes.test_scanner import router as test_scanner_router
+from app.routes.scanner_test_route import router as test_scanner_router
 from app.database.init_db import init_db
 from app.routes.predictions import router as predictions_router
 from app.routes.evaluation import router as evaluation_router
