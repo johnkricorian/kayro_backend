@@ -117,8 +117,8 @@ def build_training_dataset(
             except Exception as error:
                 logger.info(f"❌ {ticker}: {error}")
 
-            logger.info(
-                f"[{completed}/{len(tickers)}] {ticker}",
+            print(
+                f"[{completed}/{len(tickers)}] processed",
                 end="\r",
                 flush=True
             )
