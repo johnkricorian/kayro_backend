@@ -10,7 +10,7 @@ from app.services.market import fetch_market_data
 from app.services.ml import FEATURES, build_features
 from app.services.sector_loader import load_sectors
 from app.services.training_loader import load_training_stocks
-from core.logger import create_logger
+from app.core.logger import create_logger
 
 logger = create_logger(__name__)
 
