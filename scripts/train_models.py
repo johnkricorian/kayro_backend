@@ -10,6 +10,9 @@ from app.services.market import fetch_market_data
 from app.services.ml import FEATURES, build_features
 from app.services.sector_loader import load_sectors
 from app.services.training_loader import load_training_stocks
+from core.logger import create_logger
+
+logger = create_logger(__name__)
 
 MODEL_DIR = Path(__file__).resolve().parent.parent / "app" / "models"
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
@@ -130,16 +133,14 @@ def build_training_dataset(
         .dropna(subset=FEATURES + ["target"])
     )
 
-    print("\n======================================")
-    print("✅ Training dataset ready")
-    print(f"Stocks loaded : {len(rows)}")
-    print(f"Rows          : {len(dataset):,}")
-    print("======================================\n")
+    logger.info("✅ Training dataset ready")
+    logger.info(f"Stocks loaded : {len(rows)}")
+    logger.info(f"Rows          : {len(dataset):,}")
 
     return dataset
 
 def train_model(forecast_horizon: int):
-    print(f"\n🚀 Training {forecast_horizon}d global model...")
+    logger.info(f"\n🚀 Training {forecast_horizon}d global model...")
 
     df = build_training_dataset(forecast_horizon)
 
@@ -209,15 +210,8 @@ def train_model(forecast_horizon: int):
 
 
 def main():
-    print("======================================")
-    print("      Kayro Global Model Trainer")
-    print("======================================")
-
     for horizon in HORIZONS:
         train_model(forecast_horizon=horizon)
-
-    print("\n🎉 All global models successfully trained.")
-
 
 if __name__ == "__main__":
     main()
