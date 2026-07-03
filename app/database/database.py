@@ -1,9 +1,10 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from pathlib import Path
+import os
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-DATABASE_URL = f"sqlite:///{BASE_DIR / 'kayro.db'}"
+DB_PATH = os.getenv("KAYRO_DB_PATH", "/tmp/kayro.db")
+DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 engine = create_engine(
     DATABASE_URL,
