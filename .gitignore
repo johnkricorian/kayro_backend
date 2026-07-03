@@ -1,4 +1,12 @@
-.venv/
-.env
-__pycache__/
+.venv
+__pycache__
 *.pyc
+.pytest_cache
+.git
+.gitignore
+.env
+*.db
+notebooks
+tests
+README.md
+.DS_Store
