@@ -1,4 +1,5 @@
 from pathlib import Path
+from app.core.exceptions import PortfolioError
 import json
 
 DATA_FILE = (
@@ -21,6 +22,6 @@ def get_sector_stocks(sector: str) -> list[dict]:
     sectors = load_sectors()
 
     if sector not in sectors:
-        raise ValueError(f"Unknown sector '{sector}'")
+        raise PortfolioError(f"Unknown sector '{sector}'")
 
     return sectors[sector]

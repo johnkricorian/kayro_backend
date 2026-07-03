@@ -4,6 +4,7 @@ from pathlib import Path
 from joblib import load
 from xgboost import XGBClassifier
 from app.core.logger import create_logger
+from app.core.exceptions import ModelNotFoundError
 
 logger = create_logger(__name__)
 
@@ -63,7 +64,7 @@ def load_model(
             map(str, available_models())
         )
 
-        raise FileNotFoundError(
+        raise ModelNotFoundError(
             f"Model '{model_path.name}' not found.\n"
             f"Available models: {available}"
         )

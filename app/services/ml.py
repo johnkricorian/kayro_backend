@@ -2,7 +2,7 @@ import pandas as pd
 
 from app.services.market import fetch_market_data
 from app.services.model_loader import load_model
-
+from app.core.exceptions import PredictionError
 
 FEATURES = [
     "distance_ma20",
@@ -98,7 +98,7 @@ def train_and_predict(
     )
 
     if len(df) < 80:
-        raise ValueError(
+        raise PredictionError(
             f"Not enough data for {ticker}. Rows after feature engineering: {len(df)}"
         )
 

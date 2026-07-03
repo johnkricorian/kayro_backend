@@ -17,6 +17,11 @@ from app.routes.portfolio_analysis import (router as portfolio_analysis_router)
 from contextlib import asynccontextmanager
 from app.services.model_loader import warmup_models
 from app.core.logger import create_logger
+from app.core.exceptions import KayroError
+from app.core.exception_handlers import (
+    kayro_exception_handler,
+    generic_exception_handler
+)
 
 logger = create_logger(__name__)
 
@@ -35,6 +40,16 @@ app = FastAPI(
     title="Kayro Stock API",
     version="1.0.0",
     lifespan=lifespan
+)
+
+app.add_exception_handler(
+    KayroError,
+    kayro_exception_handler
+)
+
+app.add_exception_handler(
+    Exception,
+    generic_exception_handler
 )
 
 app.include_router(score_router)

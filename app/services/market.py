@@ -4,6 +4,7 @@ import time
 
 from app.services.market_cache import get, set
 from app.core.logger import create_logger
+from app.core.exceptions import StockNotFoundError
 
 logger = create_logger(__name__)
 
@@ -34,7 +35,7 @@ def fetch_market_data(
     )
 
     if df.empty:
-        raise ValueError(f"No market data for {ticker}")
+        raise StockNotFoundError(f"No market data for {ticker}")
 
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
