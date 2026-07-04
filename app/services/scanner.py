@@ -54,11 +54,7 @@ def scan_sector(
             except Exception as error:
                 logger.info(f"❌ {ticker}: {error}")
 
-            logger.info(
-                f"[{completed}/{len(stocks)}] {ticker}",
-                end="\r",
-                flush=True
-            )
+            logger.info("[%d/%d] %s", completed, len(stocks), ticker)
 
     results = sorted(
         results,

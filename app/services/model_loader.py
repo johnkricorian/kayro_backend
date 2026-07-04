@@ -69,10 +69,7 @@ def load_model(
             f"Available models: {available}"
         )
 
-    logger.info(
-        f"📦 Loading model "
-        f"{model_path.name}"
-    )
+    logger.info("📦 Loading model %s", model_path.name)
 
     return load(model_path)
 
@@ -94,9 +91,7 @@ def warmup_models():
     for horizon in models:
         load_model(horizon)
 
-    logger.info(
-        f"\n✅ {len(models)} XGBoost model(s) loaded."
-    )
+    logger.info(f"\n✅ {len(models)} XGBoost model(s) loaded.")
 
 
 def clear_cache():

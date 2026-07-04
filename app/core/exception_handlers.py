@@ -1,7 +1,12 @@
+import logging
+
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
 from app.core.exceptions import KayroError
+
+
+logger = logging.getLogger(__name__)
 
 
 async def kayro_exception_handler(
@@ -22,11 +27,13 @@ async def generic_exception_handler(
     request: Request,
     exc: Exception
 ):
+    logger.exception("Unhandled exception")
+
     return JSONResponse(
         status_code=500,
         content={
-            "error": "InternalServerError",
-            "detail": "Unexpected server error",
-            "path": str(request.url.path)
+            "error": exc.__class__.__name__,
+            "detail": str(exc),
+            "path": str(request.url.path),
         }
     )
