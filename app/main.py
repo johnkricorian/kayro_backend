@@ -13,6 +13,7 @@ from app.routes.stats import router as stats_router
 from app.routes.leaderboard import router as leaderboard_router
 from app.routes.portfolio_positions import router as portfolio_positions_router
 from app.routes.portfolio_analysis import (router as portfolio_analysis_router)
+from app.routes.opportunities import router as opportunities_router
 
 from contextlib import asynccontextmanager
 from app.services.model_loader import warmup_models
@@ -63,6 +64,7 @@ app.include_router(stats_router)
 app.include_router(leaderboard_router)
 app.include_router(portfolio_positions_router)
 app.include_router(portfolio_analysis_router)
+app.include_router(opportunities_router)
 
 @app.get("/")
 def root():
