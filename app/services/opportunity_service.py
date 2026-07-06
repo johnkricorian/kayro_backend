@@ -4,7 +4,7 @@ from app.models.opportunity import Opportunity
 from app.services.score_engine import build_stock_score
 from app.services.market import fetch_market_data
 from app.services.sector_loader import load_sectors
-
+from app.services.opportunity_presenter import OpportunityPresenter
 
 def build_opportunity(
     ticker: str,
@@ -31,21 +31,58 @@ def build_opportunity(
             / previous["Close"]
         ) * 100
 
+        sentiment = score["sentiment"]
+        technical = score["technical"]
+        prediction = score["prediction"]
+
+        positive_sentiment = round(sentiment["finbert_score"] * 100)
+        technical_percent = OpportunityPresenter.technical_percent(
+            technical["technical_score"]
+        )
+        news_count = len(sentiment["articles"])
+
         return Opportunity(
             ticker=ticker,
             company_name=ticker,
             sector=sector,
             kayro_score=score["kayro_score"],
             recommendation=score["recommendation"],
-            prediction=score["prediction"]["direction"],
-            confidence=score["prediction"]["confidence"],
+            prediction=prediction["direction"],
+            confidence=prediction["confidence"],
             price=round(float(latest["Close"]), 2),
             change_percent=round(float(change_percent), 2),
             signals=[
                 signal["title"]
                 for signal in score["signals"][:3]
             ],
-            logo=None
+            logo=None,
+            sentiment_label=OpportunityPresenter.sentiment_label(
+                positive_sentiment
+            ),
+            positive_sentiment_percent=positive_sentiment,
+            media_buzz_label=OpportunityPresenter.media_buzz_label(
+                sentiment["media_buzz"]
+            ),
+            news_count=news_count,
+            trend_label=technical["trend"],
+            trend_percent=round(prediction["confidence"]),
+            technical_label=OpportunityPresenter.technical_label(
+                technical_percent
+            ),
+            technical_percent=technical_percent,
+            popularity_score=OpportunityPresenter.popularity_score(
+                news_count=news_count,
+                media_buzz=sentiment["media_buzz"]
+            ),
+            main_catalyst=OpportunityPresenter.main_catalyst(
+                score["signals"]
+            ),
+            ai_explanation=OpportunityPresenter.ai_explanation(
+                prediction=prediction,
+                technical=technical,
+                news_count=news_count
+            ),
+            reasons=[signal["description"] for signal in score["signals"][:3]]
         )
 
     except Exception as error:
