@@ -1,56 +1,70 @@
-from fastapi import FastAPI
-from dotenv import load_dotenv
+from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
+from fastapi import FastAPI
+
+from app.core.exception_handlers import (
+    generic_exception_handler,
+    kayro_exception_handler,
+)
+from app.core.exceptions import KayroError
+from app.core.logger import create_logger
+from app.database.init_db import init_db
+from app.routes.evaluation import router as evaluation_router
+from app.routes.leaderboard import router as leaderboard_router
+from app.routes.opportunities import router as opportunities_router
+from app.routes.portfolio import router as portfolio_router
+from app.routes.portfolio_analysis import router as portfolio_analysis_router
+from app.routes.portfolio_positions import router as portfolio_positions_router
+from app.routes.predictions import router as predictions_router
+from app.routes.scanner_test_route import router as test_scanner_router
 from app.routes.score import router as score_router
 from app.routes.sectors import router as sectors_router
-from app.routes.test import router as test_router
-from app.routes.portfolio import router as portfolio_router
-from app.routes.scanner_test_route import router as test_scanner_router
-from app.database.init_db import init_db
-from app.routes.predictions import router as predictions_router
-from app.routes.evaluation import router as evaluation_router
 from app.routes.stats import router as stats_router
-from app.routes.leaderboard import router as leaderboard_router
-from app.routes.portfolio_positions import router as portfolio_positions_router
-from app.routes.portfolio_analysis import (router as portfolio_analysis_router)
-from app.routes.opportunities import router as opportunities_router
-
-from contextlib import asynccontextmanager
+from app.routes.test import router as test_router
 from app.services.model_loader import warmup_models
-from app.core.logger import create_logger
-from app.core.exceptions import KayroError
-from app.core.exception_handlers import (
-    kayro_exception_handler,
-    generic_exception_handler
-)
+from app.jobs.scheduler import scheduler
 
-logger = create_logger(__name__)
 
 load_dotenv()
 
+logger = create_logger(__name__)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("\n🚀 Initializing database...")
+    logger.info("Initializing database")
     init_db()
-    logger.info("\n🚀 Warming up XGBoost models...")
+
+    logger.info("Warming up XGBoost models")
     warmup_models()
-    yield
+
+    logger.info("Starting scheduler")
+    scheduler.start()
+
+    try:
+        yield
+    finally:
+        logger.info("Stopping scheduler")
+
+        if scheduler.running:
+            scheduler.shutdown(wait=False)
 
 
 app = FastAPI(
     title="Kayro Stock API",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.add_exception_handler(
     KayroError,
-    kayro_exception_handler
+    kayro_exception_handler,
 )
 
 app.add_exception_handler(
     Exception,
-    generic_exception_handler
+    generic_exception_handler,
 )
 
 app.include_router(score_router)
@@ -66,14 +80,16 @@ app.include_router(portfolio_positions_router)
 app.include_router(portfolio_analysis_router)
 app.include_router(opportunities_router)
 
+
 @app.get("/")
 def root():
     return {
-        "status": "running"
+        "status": "running",
     }
+
 
 @app.get("/health")
 def health():
     return {
-        "status": "ok"
+        "status": "ok",
     }
