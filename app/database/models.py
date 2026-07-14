@@ -1,5 +1,14 @@
 from datetime import datetime
-from sqlalchemy import Boolean, DateTime, Float, Integer, String
+from sqlalchemy import (
+    Column,
+    Boolean,
+    DateTime,
+    Float,
+    Integer,
+    JSON,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database.database import Base
 
@@ -74,26 +83,25 @@ from sqlalchemy import (
 class Opportunity(Base):
     __tablename__ = "opportunities"
 
+    __table_args__ = (
+        UniqueConstraint(
+            "ticker",
+            "forecast_horizon",
+            name="uq_opportunity_ticker_horizon",
+        ),
+    )
+
     id = Column(Integer, primary_key=True)
-
-    ticker = Column(String, index=True)
-    sector = Column(String, index=True)
-
-    forecast_horizon = Column(Integer)
+    ticker = Column(String, nullable=False, index=True)
+    sector = Column(String, nullable=False, index=True)
+    forecast_horizon = Column(Integer, nullable=False, index=True)
 
     kayro_score = Column(Integer)
     recommendation = Column(String)
-
     prediction = Column(String)
     confidence = Column(Float)
-
     price = Column(Float)
     change_percent = Column(Float)
 
     json_payload = Column(JSON)
-
-    updated_at = Column(
-        DateTime,
-        default=datetime.utcnow,
-        index=True
-    )
+    updated_at = Column(DateTime, nullable=False)

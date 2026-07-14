@@ -22,8 +22,6 @@ RUN pip install --upgrade pip \
 
 RUN mkdir -p /tmp/huggingface
 
-RUN python -c "from transformers import AutoTokenizer, AutoModelForSequenceClassification; AutoTokenizer.from_pretrained('ProsusAI/finbert'); AutoModelForSequenceClassification.from_pretrained('ProsusAI/finbert')"
-
 COPY app ./app
 
 RUN useradd -m appuser \

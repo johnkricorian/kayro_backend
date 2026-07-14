@@ -110,7 +110,6 @@
     "aerospace": [
         {"ticker": "BA", "company_name": "Boeing"},
         {"ticker": "GE", "company_name": "GE Aerospace"},
-        {"ticker": "SPR", "company_name": "Spirit AeroSystems"},
         {"ticker": "RKLB", "company_name": "Rocket Lab"},
         {"ticker": "ACHR", "company_name": "Archer Aviation"},
         {"ticker": "JOBY", "company_name": "Joby Aviation"}
@@ -147,7 +146,7 @@
         {"ticker": "UBER", "company_name": "Uber"},
         {"ticker": "ABNB", "company_name": "Airbnb"},
         {"ticker": "PYPL", "company_name": "PayPal"},
-        {"ticker": "SQ", "company_name": "Block"},
+        {"ticker": "XYZ", "company_name": "Block, Inc."},
         {"ticker": "SPGI", "company_name": "S&P Global"}
     ]
 }

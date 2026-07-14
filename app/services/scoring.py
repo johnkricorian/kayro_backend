@@ -2,15 +2,16 @@ import os
 import requests
 import pandas as pd
 import yfinance as yf
+import os
 
 from ta.momentum import RSIIndicator
 from ta.trend import MACD
-
 from app.services.finbert import finbert_score
+from threading import Lock
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
-
-ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY")
-
+api_key = os.getenv("ALPHA_VANTAGE_API_KEY")
 
 def clamp(value, min_value=-1, max_value=1):
     return max(min(float(value), max_value), min_value)
@@ -28,55 +29,200 @@ def classify(score):
     return "Très baissier"
 
 
-def get_news_scores(ticker):
+_ALPHA_LOCK = Lock()
+_LAST_ALPHA_CALL = 0.0
+
+MIN_CALL_INTERVAL_SECONDS = float(
+    os.getenv("ALPHA_VANTAGE_MIN_INTERVAL_SECONDS", "3")
+)
+
+_retry_strategy = Retry(
+    total=3,
+    connect=3,
+    read=3,
+    status=3,
+    backoff_factor=2,
+    status_forcelist=[
+        429,
+        500,
+        502,
+        503,
+        504,
+    ],
+    allowed_methods=["GET"],
+    raise_on_status=False,
+)
+
+_session = requests.Session()
+_session.mount(
+    "https://",
+    HTTPAdapter(
+        max_retries=_retry_strategy,
+        pool_connections=4,
+        pool_maxsize=4,
+    ),
+)
+
+def get_news_scores(ticker: str):
+    global _LAST_ALPHA_CALL
+    api_key = os.getenv("ALPHA_VANTAGE_API_KEY")
     if not ALPHA_VANTAGE_API_KEY:
-        return 0, 0, 0, []
+        return 0.0, 0.0, 0.0, []
 
     url = "https://www.alphavantage.co/query"
 
     params = {
         "function": "NEWS_SENTIMENT",
-        "tickers": ticker,
-        "apikey": ALPHA_VANTAGE_API_KEY
+        "tickers": ticker.upper(),
+        "apikey": api_key,
     }
 
-    response = requests.get(url, params=params, timeout=20)
-    data = response.json()
+    try:
+        # Évite que plusieurs threads frappent Alpha Vantage simultanément.
+        with _ALPHA_LOCK:
+            elapsed = time.monotonic() - _LAST_ALPHA_CALL
+            wait_time = MIN_CALL_INTERVAL_SECONDS - elapsed
 
-    feed = data.get("feed", [])
-    rows = []
+            if wait_time > 0:
+                time.sleep(wait_time)
 
-    for article in feed:
-        title = article.get("title", "")
-        summary = article.get("summary", "")
-        score, _ = finbert_score(f"{title}. {summary}")
+            response = _session.get(
+                url,
+                params=params,
+                timeout=(10, 30),
+            )
 
-        rows.append({
-            "title": title,
-            "summary": summary,
-            "source": article.get("source", ""),
-            "url": article.get("url", ""),
-            "alpha_score": float(article.get("overall_sentiment_score", 0)),
-            "finbert_score": score
-        })
+            _LAST_ALPHA_CALL = time.monotonic()
 
-    df = pd.DataFrame(rows)
+        response.raise_for_status()
 
-    if df.empty:
-        return 0, 0, 0, []
+        data = response.json()
 
-    alpha_score = clamp(df["alpha_score"].mean())
-    finbert_news_score = clamp(df["finbert_score"].mean())
-    media_buzz_score = clamp(len(df) / 50)
+        if "Note" in data:
+            print(
+                f"⚠️ Alpha Vantage rate limit for {ticker}: "
+                f"{data['Note']}"
+            )
+            return 0.0, 0.0, 0.0, []
 
-    articles = (
-        df.sort_values("finbert_score", ascending=False)
-        .head(5)
-        .to_dict("records")
-    )
+        if "Information" in data:
+            print(
+                f"⚠️ Alpha Vantage information for {ticker}: "
+                f"{data['Information']}"
+            )
+            return 0.0, 0.0, 0.0, []
 
-    return alpha_score, finbert_news_score, media_buzz_score, articles
+        if "Error Message" in data:
+            print(
+                f"⚠️ Alpha Vantage error for {ticker}: "
+                f"{data['Error Message']}"
+            )
+            return 0.0, 0.0, 0.0, []
 
+        feed = data.get("feed", [])
+
+        if not feed:
+            return 0.0, 0.0, 0.0, []
+
+        rows = []
+
+        for article in feed:
+            title = article.get("title", "")
+            summary = article.get("summary", "")
+
+            try:
+                score, _ = finbert_score(
+                    f"{title}. {summary}"
+                )
+            except Exception as error:
+                print(
+                    f"⚠️ FinBERT failed for {ticker}: {error}"
+                )
+                score = 0.0
+
+            rows.append(
+                {
+                    "title": title,
+                    "summary": summary,
+                    "source": article.get("source", ""),
+                    "url": article.get("url", ""),
+                    "published_at": article.get(
+                        "time_published",
+                        "",
+                    ),
+                    "alpha_score": float(
+                        article.get(
+                            "overall_sentiment_score",
+                            0,
+                        )
+                    ),
+                    "finbert_score": float(score),
+                }
+            )
+
+        df = pd.DataFrame(rows)
+
+        if df.empty:
+            return 0.0, 0.0, 0.0, []
+
+        alpha_score = clamp(
+            float(df["alpha_score"].mean())
+        )
+
+        finbert_news_score = clamp(
+            float(df["finbert_score"].mean())
+        )
+
+        media_buzz_score = clamp(
+            len(df) / 50
+        )
+
+        articles = (
+            df.sort_values(
+                "finbert_score",
+                ascending=False,
+            )
+            .head(5)
+            .to_dict("records")
+        )
+
+        return (
+            alpha_score,
+            finbert_news_score,
+            media_buzz_score,
+            articles,
+        )
+
+    except requests.exceptions.Timeout:
+        print(
+            f"⚠️ Alpha Vantage timeout for {ticker}"
+        )
+
+    except requests.exceptions.SSLError as error:
+        print(
+            f"⚠️ Alpha Vantage SSL error for {ticker}: "
+            f"{error}"
+        )
+
+    except requests.exceptions.RequestException as error:
+        print(
+            f"⚠️ Alpha Vantage request error for {ticker}: "
+            f"{error}"
+        )
+
+    except ValueError as error:
+        print(
+            f"⚠️ Invalid Alpha Vantage JSON for {ticker}: "
+            f"{error}"
+        )
+
+    except Exception as error:
+        print(
+            f"⚠️ Unexpected news error for {ticker}: "
+            f"{error}"
+        )
+
+    return 0.0, 0.0, 0.0, []
 
 def get_market_data(ticker):
     df = yf.download(
@@ -338,11 +484,28 @@ def build_market_pulse(
         )
     }
 
-
 def build_stock_score(ticker: str) -> dict:
     ticker = ticker.upper()
 
-    alpha_score, finbert_news_score, media_buzz_score, articles = get_news_scores(ticker)
+    try:
+        (
+            alpha_score,
+            finbert_news_score,
+            media_buzz_score,
+            articles,
+        ) = get_news_scores(ticker)
+
+    except Exception as error:
+        logger.warning(
+            "News unavailable for %s: %s",
+            ticker,
+            error,
+        )
+
+        alpha_score = 0.0
+        finbert_news_score = 0.0
+        media_buzz_score = 0.0
+        articles = []
 
     market_df = get_market_data(ticker)
     price_volume_score = get_price_volume_score(market_df)

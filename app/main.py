@@ -24,12 +24,13 @@ from app.routes.stats import router as stats_router
 from app.routes.test import router as test_router
 from app.services.model_loader import warmup_models
 from app.jobs.scheduler import scheduler
-
+from app.routes.internal_opportunities import (
+    router as internal_opportunities_router,
+)
 
 load_dotenv()
 
 logger = create_logger(__name__)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -40,7 +41,6 @@ async def lifespan(app: FastAPI):
     warmup_models()
 
     logger.info("Starting scheduler")
-    scheduler.start()
 
     try:
         yield
@@ -79,6 +79,7 @@ app.include_router(leaderboard_router)
 app.include_router(portfolio_positions_router)
 app.include_router(portfolio_analysis_router)
 app.include_router(opportunities_router)
+app.include_router(internal_opportunities_router)
 
 
 @app.get("/")
