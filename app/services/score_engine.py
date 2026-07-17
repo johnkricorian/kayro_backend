@@ -37,6 +37,19 @@ def build_stock_score(ticker: str, forecast_horizon: int = 15) -> dict:
         forecast_horizon=forecast_horizon
     )
 
+    prediction = ml["prediction"]
+
+    latest_close = float(
+        ml["market_context"]["latest_close"]
+    )
+
+    prediction["target"] = compute_target_price(
+        latest_close=latest_close,
+        probability_up=prediction["probability_up"],
+        probability_down=prediction["probability_down"],
+        forecast_horizon=forecast_horizon,
+    )
+
     signals = build_signals(
         sentiment=sentiment,
         technical=technical,
@@ -49,17 +62,20 @@ def build_stock_score(ticker: str, forecast_horizon: int = 15) -> dict:
         "ticker": ticker,
         "kayro_score": kayro_score,
         "recommendation": recommendation_label(kayro_score),
-        "confidence": ml["prediction"]["confidence"],
+        "confidence": prediction["confidence"],
         "signals": signals,
         "sentiment": sentiment,
         "technical": technical,
-        "prediction": ml["prediction"],
+        "prediction": prediction,
         "model": ml["model"],
         "market_context": ml["market_context"],
         "backtest": ml["backtest"],
         "top_features": ml["top_features"],
         "price_history": price_history,
-        "disclaimer": "This prediction is for informational purposes only and is not financial advice."
+        "disclaimer": (
+            "This prediction is for informational purposes only "
+            "and is not financial advice."
+        )
     }
 
     save_prediction(
@@ -225,3 +241,28 @@ def build_price_history(
         }
         for index, row in history.iterrows()
     ]
+
+def compute_target_price(
+    latest_close: float,
+    probability_up: float,
+    probability_down: float,
+    forecast_horizon: int,
+) -> float:
+    if latest_close <= 0:
+        return 0.0
+
+    up = probability_up / 100 if probability_up > 1 else probability_up
+    down = (
+        probability_down / 100
+        if probability_down > 1
+        else probability_down
+    )
+
+    probability_edge = up - down
+    horizon_factor = max(forecast_horizon, 1) / 15
+
+    # Amplitude maximale indicative de 8 % sur 15 jours.
+    expected_return = 0.08 * probability_edge * horizon_factor
+    target = latest_close * (1 + expected_return)
+
+    return round(max(target, 0), 2)
