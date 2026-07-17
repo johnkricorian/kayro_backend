@@ -16,7 +16,6 @@ api_key = os.getenv("ALPHA_VANTAGE_API_KEY")
 def clamp(value, min_value=-1, max_value=1):
     return max(min(float(value), max_value), min_value)
 
-
 def classify(score):
     if score >= 0.35:
         return "Très haussier"
@@ -27,7 +26,6 @@ def classify(score):
     elif score > -0.35:
         return "Baissier"
     return "Très baissier"
-
 
 _ALPHA_LOCK = Lock()
 _LAST_ALPHA_CALL = 0.0
@@ -241,7 +239,6 @@ def get_market_data(ticker):
 
     return df.dropna()
 
-
 def get_price_volume_score(df):
     if df.empty or len(df) < 30:
         return 0
@@ -257,7 +254,6 @@ def get_price_volume_score(df):
     volume_score = clamp((volume_ratio - 1) / 2)
 
     return clamp(0.7 * price_score + 0.3 * volume_score)
-
 
 def get_technical_score(df):
     if df.empty or len(df) < 60:
@@ -292,7 +288,6 @@ def get_technical_score(df):
         0.35 * macd_score +
         0.30 * momentum_score
     )
-
 
 def build_score_reasons(
     alpha_score,
@@ -331,10 +326,8 @@ def build_score_reasons(
 
     return reasons[:4]
 
-
 def percent_from_score(score):
     return round(((clamp(score) + 1) / 2) * 100)
-
 
 def market_sentiment_label(score):
     if score >= 0.35:
@@ -359,7 +352,6 @@ def media_buzz_label(article_count):
         return "Low media coverage"
     return "No major media coverage"
 
-
 def trend_label(price_volume_score):
     if price_volume_score >= 0.35:
         return "Strong price and volume momentum"
@@ -369,7 +361,6 @@ def trend_label(price_volume_score):
         return "Stable price and volume trend"
     return "Weak price and volume trend"
 
-
 def technical_label(technical_score):
     if technical_score >= 0.35:
         return "Strong technical setup"
@@ -378,7 +369,6 @@ def technical_label(technical_score):
     elif technical_score > -0.15:
         return "Neutral technical setup"
     return "Weak technical setup"
-
 
 def detect_main_catalyst(articles, technical_score, price_volume_score, finbert_news_score):
     text = " ".join(
@@ -414,7 +404,6 @@ def detect_main_catalyst(articles, technical_score, price_volume_score, finbert_
 
     return "Market activity remains neutral"
 
-
 def build_ai_explanation(
     ticker,
     final_score,
@@ -431,7 +420,6 @@ def build_ai_explanation(
         f"{media_buzz_label(round(media_buzz_score * 50)).lower()}. "
         f"The main catalyst appears to be {main_catalyst.lower()}."
     )
-
 
 def build_market_pulse(
     ticker,

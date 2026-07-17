@@ -11,7 +11,6 @@ logger = create_logger(__name__)
 def clamp(value: float, min_value: float = 0, max_value: float = 100) -> float:
     return max(min(float(value), max_value), min_value)
 
-
 def build_stock_score(ticker: str, forecast_horizon: int = 15) -> dict:
     ticker = ticker.upper()
 
@@ -27,6 +26,10 @@ def build_stock_score(ticker: str, forecast_horizon: int = 15) -> dict:
     sentiment = analyze_news_sentiment(ticker)
 
     market_df = fetch_market_data(ticker)
+    price_history = build_price_history(
+        market_df=market_df,
+        limit=10,
+    )
     technical = compute_technical_analysis(market_df)
 
     ml = train_and_predict(
@@ -55,6 +58,7 @@ def build_stock_score(ticker: str, forecast_horizon: int = 15) -> dict:
         "market_context": ml["market_context"],
         "backtest": ml["backtest"],
         "top_features": ml["top_features"],
+        "price_history": price_history,
         "disclaimer": "This prediction is for informational purposes only and is not financial advice."
     }
 
@@ -166,7 +170,6 @@ def build_signals(
 
     return signals
 
-
 def signal(
     title: str,
     description: str,
@@ -181,12 +184,10 @@ def signal(
         "direction": "positive" if impact > 0 else "negative" if impact < 0 else "neutral"
     }
 
-
 def compute_kayro_score(signals: list[dict]) -> int:
     raw_score = 50 + sum(item["impact"] for item in signals)
 
     return round(clamp(raw_score, 0, 100))
-
 
 def recommendation_label(score: int) -> str:
     if score >= 80:
@@ -198,3 +199,29 @@ def recommendation_label(score: int) -> str:
     if score >= 35:
         return "Weak"
     return "Avoid"
+
+import pandas as pd
+
+def build_price_history(
+    market_df: pd.DataFrame,
+    limit: int = 10,
+) -> list[dict]:
+    if market_df is None or market_df.empty:
+        return []
+
+    if "Close" not in market_df.columns:
+        return []
+
+    history = (
+        market_df
+        .dropna(subset=["Close"])
+        .tail(limit)
+    )
+
+    return [
+        {
+            "date": index.strftime("%Y-%m-%d"),
+            "close": round(float(row["Close"]), 2),
+        }
+        for index, row in history.iterrows()
+    ]
