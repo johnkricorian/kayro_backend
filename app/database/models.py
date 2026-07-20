@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import (
     Column,
     Boolean,
@@ -105,3 +105,103 @@ class Opportunity(Base):
 
     json_payload = Column(JSON)
     updated_at = Column(DateTime, nullable=False)
+
+class UserPrediction(Base):
+    __tablename__ = "user_predictions"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "ticker",
+            "forecast_horizon",
+            name="uq_user_prediction_user_ticker_horizon",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    user_id: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        index=True,
+    )
+
+    ticker: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        index=True,
+    )
+
+    forecast_horizon: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=15,
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default="selected",
+    )
+
+    kayro_score: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+
+    recommendation: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+
+    confidence: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+
+    direction: Mapped[str | None] = mapped_column(
+        String(30),
+        nullable=True,
+    )
+
+    probability_up: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+
+    probability_down: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+
+    latest_close: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+
+    target_price: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+    )
+
+    prediction_payload: Mapped[dict | None] = mapped_column(
+        JSON,
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )

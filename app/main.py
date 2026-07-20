@@ -27,6 +27,9 @@ from app.jobs.scheduler import scheduler
 from app.routes.internal_opportunities import (
     router as internal_opportunities_router,
 )
+from app.routes.user_predictions import (
+    router as user_predictions_router,
+)
 
 load_dotenv()
 
@@ -80,7 +83,7 @@ app.include_router(portfolio_positions_router)
 app.include_router(portfolio_analysis_router)
 app.include_router(opportunities_router)
 app.include_router(internal_opportunities_router)
-
+app.include_router(user_predictions_router)
 
 @app.get("/")
 def root():
