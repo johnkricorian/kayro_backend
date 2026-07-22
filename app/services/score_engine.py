@@ -5,6 +5,7 @@ from app.services.ml import train_and_predict
 from app.services import score_cache
 from app.database.prediction_repository import save_prediction
 from app.core.logger import create_logger
+from app.services.company_logo import build_company_logo_url
 
 logger = create_logger(__name__)
 
@@ -60,6 +61,7 @@ def build_stock_score(ticker: str, forecast_horizon: int = 15) -> dict:
 
     result = {
         "ticker": ticker,
+        "logo_url": build_company_logo_url(ticker),
         "kayro_score": kayro_score,
         "recommendation": recommendation_label(kayro_score),
         "confidence": prediction["confidence"],

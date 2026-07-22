@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-
 from app.database.database import get_db
 from app.repositories.opportunity_repository import get_opportunities
 

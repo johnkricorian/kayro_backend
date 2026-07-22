@@ -2,6 +2,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from app.database.models import Opportunity
 from sqlalchemy import func
+from app.services.company_logo import build_company_logo_url
 
 def save_opportunities(
     db: Session,
@@ -59,20 +60,6 @@ def opportunities_count(
 ) -> int:
     return db.query(Opportunity).count()
 
-from datetime import datetime, timezone
-
-from sqlalchemy.orm import Session
-
-from app.database.models import Opportunity
-
-
-from datetime import datetime, timezone
-
-from sqlalchemy.orm import Session
-
-from app.database.models import Opportunity
-
-
 def upsert_opportunities(
     db: Session,
     opportunities: list[dict],
@@ -80,14 +67,11 @@ def upsert_opportunities(
 ) -> int:
     if not opportunities:
         return 0
-
     now = datetime.now(timezone.utc)
-
     try:
         for item in opportunities:
             ticker = item["ticker"].upper()
             sector = item["sector"].strip().lower()
-
             rows = (
                 db.query(Opportunity)
                 .filter(
@@ -137,30 +121,33 @@ def get_opportunities(
     forecast_horizon: int,
     limit: int,
 ) -> list[dict]:
-    normalized_sectors = [
-        sector.strip().lower()
-        for sector in sectors
-        if sector.strip()
-    ]
-
-    query = db.query(Opportunity).filter(
-        Opportunity.forecast_horizon == forecast_horizon
-    )
-
-    if normalized_sectors:
-        query = query.filter(
-            Opportunity.sector.in_(normalized_sectors)
+    query = (
+        db.query(Opportunity)
+        .filter(
+            Opportunity.forecast_horizon == forecast_horizon
         )
-
+    )
+    if sectors:
+        query = query.filter(
+            Opportunity.sector.in_(sectors)
+        )
     rows = (
         query
-        .order_by(Opportunity.kayro_score.desc())
+        .order_by(
+            Opportunity.kayro_score.desc()
+        )
         .limit(limit)
         .all()
     )
-
-    return [row.json_payload for row in rows]
-
+    results: list[dict] = []
+    for row in rows:
+        payload = dict(row.json_payload or {})
+        payload["logo_url"] = (
+            payload.get("logo_url")
+            or build_company_logo_url(row.ticker)
+        )
+        results.append(payload)
+    return results
 
 def delete_stale_opportunities(
     db: Session,

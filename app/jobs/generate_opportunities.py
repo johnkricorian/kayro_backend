@@ -16,6 +16,7 @@ from app.database.database import SessionLocal
 from app.repositories.opportunity_repository import save_opportunities
 from app.services.opportunity_service import build_opportunity
 from app.services.sector_loader import load_sectors
+from app.services.company_logo import build_company_logo_url
 
 FORECAST_HORIZON = 15
 MAX_WORKERS = 2
@@ -41,20 +42,16 @@ FORECAST_HORIZON = 15
 MAX_WORKERS = 2
 BATCH_SIZE = 10
 
-
 def save_batch(batch: list[dict]) -> int:
     if not batch:
         return 0
-
     db = SessionLocal()
-
     try:
         saved = upsert_opportunities(
             db=db,
             opportunities=batch,
             forecast_horizon=FORECAST_HORIZON,
         )
-
         print(f"💾 Batch saved: {saved} opportunities")
         return saved
 
@@ -75,18 +72,15 @@ def generate() -> int:
                 unique_stocks[ticker] = {
                     "ticker": ticker,
                     "sector": sector.strip().lower(),
+                    "logo_url": build_company_logo_url(ticker)
                 }
-
     stocks = list(unique_stocks.values())
-
     print(
         f"🚀 Generating opportunities for "
         f"{len(stocks)} stocks..."
     )
-
     pending_batch: list[dict] = []
     saved_count = 0
-
     with ThreadPoolExecutor(
         max_workers=min(MAX_WORKERS, len(stocks))
     ) as executor:
@@ -99,27 +93,21 @@ def generate() -> int:
             ): stock["ticker"]
             for stock in stocks
         }
-
         for future in as_completed(futures):
             ticker = futures[future]
-
             try:
                 opportunity = future.result()
-
                 if opportunity is None:
                     print(
                         f"⚠️ No opportunity generated for {ticker}"
                     )
                     continue
-
                 pending_batch.append(
                     opportunity.model_dump()
                 )
-
                 print(
                     f"✅ Opportunity generated for {ticker}"
                 )
-
                 if len(pending_batch) >= BATCH_SIZE:
                     saved_count += save_batch(pending_batch)
                     pending_batch.clear()
