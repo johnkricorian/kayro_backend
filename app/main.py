@@ -31,6 +31,10 @@ from app.routes.user_predictions import (
     router as user_predictions_router,
 )
 
+from app.routes.market_universe import (
+    router as market_universe_router
+)
+
 load_dotenv()
 
 logger = create_logger(__name__)
@@ -84,6 +88,7 @@ app.include_router(portfolio_analysis_router)
 app.include_router(opportunities_router)
 app.include_router(internal_opportunities_router)
 app.include_router(user_predictions_router)
+app.include_router(market_universe_router)
 
 @app.get("/")
 def root():
