@@ -1,23 +1,56 @@
 from app.services.fmp_client import fmp_client
+from collections.abc import Callable
+from app.services.fmp_cache import fmp_reference_cache
 
+def get_cached_reference(
+    key: str,
+    loader: Callable[[], list]
+) -> list:
+    cached = fmp_reference_cache.get(key)
+
+    if cached is not None:
+        return cached
+
+    value = loader()
+
+    fmp_reference_cache.set(
+        key=key,
+        value=value
+    )
+
+    return value
 
 def get_available_sectors() -> list:
-    return fmp_client.get(
-        "available-sectors"
+    return get_cached_reference(
+        "sectors",
+        lambda: fmp_client.get(
+            "available-sectors"
+        )
     )
-
 
 def get_available_industries() -> list:
-    return fmp_client.get(
-        "available-industries"
+    return get_cached_reference(
+        "industries",
+        lambda: fmp_client.get(
+            "available-industries"
+        )
     )
-
 
 def get_available_countries() -> list:
-    return fmp_client.get(
-        "available-countries"
+    return get_cached_reference(
+        "countries",
+        lambda: fmp_client.get(
+            "available-countries"
+        )
     )
 
+def get_available_exchanges() -> list:
+    return get_cached_reference(
+        "exchanges",
+        lambda: fmp_client.get(
+            "available-exchanges"
+        )
+    )
 
 def get_company_profile(
     ticker: str
@@ -28,7 +61,6 @@ def get_company_profile(
             "symbol": ticker.upper()
         }
     )
-
 
 def screen_stocks(
     *,

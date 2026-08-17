@@ -7,4 +7,6 @@ FMP_BASE_URL = os.getenv(
 )
 
 if not FMP_API_KEY:
-    raise RuntimeError("FMP_API_KEY is not configured")
+    raise RuntimeError(
+        "FMP_API_KEY is not configured"
+    )

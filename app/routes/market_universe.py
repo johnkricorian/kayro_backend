@@ -4,6 +4,7 @@ from app.services.fmp import (
     get_available_sectors,
     get_available_industries,
     get_available_countries,
+    get_available_exchanges
 )
 
 from app.services.market_universe import (
@@ -51,3 +52,7 @@ def stocks(
         exchange=exchange,
         limit=limit
     )
+
+@router.get("/exchanges")
+def exchanges():
+    return get_available_exchanges()
