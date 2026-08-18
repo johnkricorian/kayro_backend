@@ -34,6 +34,9 @@ from app.routes.user_predictions import (
 from app.routes.market_universe import (
     router as market_universe_router
 )
+from app.routes.social_sentiment import (
+    router as social_sentiment_router
+)
 
 load_dotenv()
 
@@ -89,6 +92,7 @@ app.include_router(opportunities_router)
 app.include_router(internal_opportunities_router)
 app.include_router(user_predictions_router)
 app.include_router(market_universe_router)
+app.include_router(social_sentiment_router)
 
 @app.get("/")
 def root():
