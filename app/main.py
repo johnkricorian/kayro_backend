@@ -37,6 +37,9 @@ from app.routes.market_universe import (
 from app.routes.social_sentiment import (
     router as social_sentiment_router
 )
+from app.routes.financial_news import (
+    router as financial_news_router
+)
 
 load_dotenv()
 
@@ -93,6 +96,7 @@ app.include_router(internal_opportunities_router)
 app.include_router(user_predictions_router)
 app.include_router(market_universe_router)
 app.include_router(social_sentiment_router)
+app.include_router(financial_news_router)
 
 @app.get("/")
 def root():
