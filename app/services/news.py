@@ -3,7 +3,6 @@ import requests
 
 ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY")
 
-
 def fetch_news(ticker: str) -> list[dict]:
     """
     Fetch the latest Alpha Vantage news for a ticker.
