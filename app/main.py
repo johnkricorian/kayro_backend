@@ -24,24 +24,13 @@ from app.routes.stats import router as stats_router
 from app.routes.test import router as test_router
 from app.services.model_loader import warmup_models
 from app.jobs.scheduler import scheduler
-from app.routes.internal_opportunities import (
-    router as internal_opportunities_router,
-)
-from app.routes.user_predictions import (
-    router as user_predictions_router,
-)
-from app.routes.market_universe import (
-    router as market_universe_router
-)
-from app.routes.social_sentiment import (
-    router as social_sentiment_router
-)
-from app.routes.financial_news import (
-    router as financial_news_router
-)
-from app.routes.news_sentiment import (
-    router as news_sentiment_router
-)
+from app.routes.internal_opportunities import router as internal_opportunities_router
+from app.routes.user_predictions import router as user_predictions_router
+from app.routes.market_universe import router as market_universe_router
+from app.routes.social_sentiment import router as social_sentiment_router
+from app.routes.financial_news import router as financial_news_router
+from app.routes.news_sentiment import router as news_sentiment_router
+from app.routes.qeyro_score import router as qeyro_score_router
 
 load_dotenv()
 
@@ -100,6 +89,7 @@ app.include_router(market_universe_router)
 app.include_router(social_sentiment_router)
 app.include_router(financial_news_router)
 app.include_router(news_sentiment_router)
+app.include_router(qeyro_score_router)
 
 @app.get("/")
 def root():
