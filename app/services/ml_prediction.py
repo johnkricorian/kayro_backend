@@ -369,15 +369,19 @@ def reliability_label(score):
     return "Weak"
 
 
-def signal_label(probability_up):
+def signal_label(probability_up: float) -> str:
     if probability_up >= 75:
         return "Strong Bullish"
-    elif probability_up >= 60:
+
+    if probability_up >= 60:
         return "Bullish"
-    elif probability_up >= 45:
+
+    if probability_up > 40:
         return "Neutral"
-    elif probability_up >= 30:
+
+    if probability_up >= 25:
         return "Bearish"
+
     return "Strong Bearish"
 
 def build_backtest(df_compare, forecast_horizon: int):

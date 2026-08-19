@@ -7,7 +7,6 @@ from ta.trend import MACD, EMAIndicator
 def clamp(value: float, min_value: float = -1, max_value: float = 1) -> float:
     return max(min(float(value), max_value), min_value)
 
-
 def compute_technical_analysis(df: pd.DataFrame) -> dict:
     if df.empty or len(df) < 60:
         return {

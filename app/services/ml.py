@@ -25,12 +25,15 @@ FEATURES = [
 
 def build_features(
     df: pd.DataFrame,
-    forecast_horizon: int = 4
+    forecast_horizon: int = 4,
+    for_training: bool = True,
 ) -> pd.DataFrame:
     df = df.copy()
 
     df["future_close"] = df["Close"].shift(-forecast_horizon)
-    df["target"] = (df["future_close"] > df["Close"] * 1.01).astype(int)
+    df["target"] = (
+        df["future_close"] > df["Close"] * 1.01
+    ).astype(int)
 
     df["return_1"] = df["Close"].pct_change(1)
     df["return_3"] = df["Close"].pct_change(3)
@@ -43,8 +46,19 @@ def build_features(
     df["ma_ratio_10"] = df["Close"] / df["ma_10"]
     df["ma_ratio_20"] = df["Close"] / df["ma_20"]
 
-    df["volatility_10"] = df["Close"].pct_change().rolling(10).std()
-    df["volatility_50"] = df["Close"].pct_change().rolling(50).std()
+    df["volatility_10"] = (
+        df["Close"]
+        .pct_change()
+        .rolling(10)
+        .std()
+    )
+
+    df["volatility_50"] = (
+        df["Close"]
+        .pct_change()
+        .rolling(50)
+        .std()
+    )
 
     delta = df["Close"].diff()
     gain = delta.clip(lower=0)
@@ -54,28 +68,87 @@ def build_features(
     avg_loss = loss.rolling(14).mean()
 
     rs = avg_gain / avg_loss
-    df["RSI"] = 100 - (100 / (1 + rs))
 
-    ema12 = df["Close"].ewm(span=12, adjust=False).mean()
-    ema26 = df["Close"].ewm(span=26, adjust=False).mean()
+    df["RSI"] = 100 - (
+        100 / (1 + rs)
+    )
+
+    ema12 = df["Close"].ewm(
+        span=12,
+        adjust=False
+    ).mean()
+
+    ema26 = df["Close"].ewm(
+        span=26,
+        adjust=False
+    ).mean()
 
     df["MACD"] = ema12 - ema26
-    df["MACD_signal"] = df["MACD"].ewm(span=9, adjust=False).mean()
-    df["MACD_diff"] = df["MACD"] - df["MACD_signal"]
 
-    df["trend_strength_20"] = df["Close"] / df["ma_20"]
-    df["trend_slope"] = df["ma_20"].diff()
-    df["distance_ma20"] = (df["Close"] - df["ma_20"]) / df["ma_20"]
+    df["MACD_signal"] = (
+        df["MACD"]
+        .ewm(
+            span=9,
+            adjust=False
+        )
+        .mean()
+    )
+
+    df["MACD_diff"] = (
+        df["MACD"]
+        - df["MACD_signal"]
+    )
+
+    df["trend_strength_20"] = (
+        df["Close"] / df["ma_20"]
+    )
+
+    df["trend_slope"] = (
+        df["ma_20"].diff()
+    )
+
+    df["distance_ma20"] = (
+        df["Close"] - df["ma_20"]
+    ) / df["ma_20"]
 
     ma_50 = df["Close"].rolling(50).mean()
-    df["trend_slope_50"] = ma_50.diff()
-    df["distance_ma50"] = (df["Close"] - ma_50) / ma_50
 
-    df["vol_regime"] = df["volatility_10"] / df["volatility_50"]
+    df["trend_slope_50"] = (
+        ma_50.diff()
+    )
 
+    df["distance_ma50"] = (
+        df["Close"] - ma_50
+    ) / ma_50
+
+    df["vol_regime"] = (
+        df["volatility_10"]
+        / df["volatility_50"]
+    )
+
+    # Avoid look-ahead bias
     df[FEATURES] = df[FEATURES].shift(1)
 
-    return df.dropna().reset_index(drop=True)
+    if for_training:
+        required_columns = (
+            FEATURES
+            + ["future_close", "target"]
+        )
+
+        df = df.dropna(
+            subset=required_columns
+        )
+
+    else:
+        # During prediction we do NOT need future_close/target.
+        # We only need valid feature values.
+        df = df.dropna(
+            subset=FEATURES
+        )
+
+    return df.reset_index(
+        drop=True
+    )
 
 def train_and_predict(
     ticker: str,
@@ -83,84 +156,151 @@ def train_and_predict(
 ) -> dict:
     ticker = ticker.upper()
 
-    df = fetch_market_data(
+    raw_df = fetch_market_data(
         ticker=ticker,
         period="5y",
         interval="1d"
     ).reset_index()
 
-    if "Date" not in df.columns:
-        df = df.rename(columns={"index": "Date"})
+    if "Date" not in raw_df.columns:
+        raw_df = raw_df.rename(
+            columns={"index": "Date"}
+        )
 
     df = build_features(
-        df=df,
-        forecast_horizon=forecast_horizon
+        df=raw_df,
+        forecast_horizon=forecast_horizon,
+        for_training=False,
     )
 
     if len(df) < 80:
         raise PredictionError(
-            f"Not enough data for {ticker}. Rows after feature engineering: {len(df)}"
+            f"Not enough data for {ticker}. "
+            f"Rows after feature engineering: {len(df)}"
         )
 
-    bundle = load_model(forecast_horizon)
+    bundle = load_model(
+        forecast_horizon
+    )
 
     model = bundle["model"]
-    accuracy = float(bundle.get("accuracy", 0))
-    training_samples = int(bundle.get("training_samples", 0))
-    test_samples = int(bundle.get("test_samples", 0))
-    backtest = bundle.get("backtest", {})
-    feature_importances = bundle.get("feature_importances", {})
+    accuracy = float(
+        bundle.get("accuracy", 0)
+    )
+    training_samples = int(
+        bundle.get("training_samples", 0)
+    )
+    test_samples = int(
+        bundle.get("test_samples", 0)
+    )
+    backtest = bundle.get(
+        "backtest",
+        {}
+    )
+    feature_importances = bundle.get(
+        "feature_importances",
+        {}
+    )
 
-    X = df[FEATURES]
+    latest_row = df.iloc[-1]
 
-    latest_features = X.iloc[[-1]]
-    latest_prediction = int(model.predict(latest_features)[0])
-    latest_proba = model.predict_proba(latest_features)[0]
+    latest_features = df[FEATURES].iloc[[-1]]
 
-    probability_up = round(float(latest_proba[1]) * 100, 1)
-    probability_down = round(float(latest_proba[0]) * 100, 1)
-    confidence = round(float(max(latest_proba)) * 100, 1)
+    predicted_class = int(
+        model.predict(
+            latest_features
+        )[0]
+    )
 
-    latest_rsi = round(float(df.iloc[-1]["RSI"]), 1)
-    latest_macd = float(df.iloc[-1]["MACD_diff"])
-    latest_vol_regime = float(df.iloc[-1]["vol_regime"])
+    latest_proba = model.predict_proba(
+        latest_features
+    )[0]
+
+    probability_down = round(
+        float(latest_proba[0]) * 100,
+        1
+    )
+
+    probability_up = round(
+        float(latest_proba[1]) * 100,
+        1
+    )
+
+    direction_confidence = round(
+        float(max(latest_proba)) * 100,
+        1
+    )
+
+    latest_rsi = round(
+        float(latest_row["RSI"]),
+        1
+    )
+
+    latest_macd = float(
+        latest_row["MACD_diff"]
+    )
+
+    latest_vol_regime = float(
+        latest_row["vol_regime"]
+    )
 
     return {
         "ticker": ticker,
         "prediction": {
-            "direction": signal_label(probability_up),
+            "direction": signal_label(
+                probability_up
+            ),
+            "predicted_class": predicted_class,
             "probability_up": probability_up,
             "probability_down": probability_down,
-            "confidence": confidence,
+            "direction_confidence": direction_confidence,
             "time_horizon_days": forecast_horizon,
-            "target": latest_prediction
         },
         "model": {
             "name": "XGBoostClassifier",
             "version": "v1",
             "status": "loaded",
-            "reliability_score": round(accuracy * 100, 1),
-            "reliability_label": reliability_label(accuracy * 100),
+            "reliability_score": round(
+                accuracy * 100,
+                1
+            ),
+            "reliability_label": reliability_label(
+                accuracy * 100
+            ),
             "training_samples": training_samples,
             "test_samples": test_samples,
-            "features_count": len(FEATURES)
+            "features_count": len(FEATURES),
         },
         "market_context": {
             "rsi": latest_rsi,
-            "macd_diff": round(latest_macd, 4),
-            "volatility_regime": round(latest_vol_regime, 2),
-            "latest_close": round(float(df.iloc[-1]["Close"]), 4),
-            "latest_date": str(df.iloc[-1]["Date"].date())
+            "macd_diff": round(
+                latest_macd,
+                4
+            ),
+            "volatility_regime": round(
+                latest_vol_regime,
+                2
+            ),
+            "latest_close": round(
+                float(latest_row["Close"]),
+                4
+            ),
+            "latest_date": str(
+                latest_row["Date"].date()
+            ),
         },
         "backtest": backtest,
         "top_features": [
             {
                 "feature": feature,
-                "importance": round(float(value), 4)
+                "importance": round(
+                    float(value),
+                    4
+                ),
             }
-            for feature, value in feature_importances.items()
+            for feature, value
+            in feature_importances.items()
         ],
-        "disclaimer": "This prediction is for informational purposes only and is not financial advice."
     }
 
 def reliability_label(score: float) -> str:

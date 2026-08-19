@@ -73,7 +73,6 @@ def load_model(
 
     return load(model_path)
 
-
 def warmup_models():
     """
     Loads every model into memory.

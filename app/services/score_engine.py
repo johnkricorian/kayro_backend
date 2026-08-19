@@ -1,4 +1,4 @@
-from app.services.sentiment import analyze_news_sentiment
+from app.services.sentiment import get_news_sentiment
 from app.services.market import fetch_market_data
 from app.services.technical import compute_technical_analysis
 from app.services.ml import train_and_predict
@@ -12,7 +12,10 @@ logger = create_logger(__name__)
 def clamp(value: float, min_value: float = 0, max_value: float = 100) -> float:
     return max(min(float(value), max_value), min_value)
 
-def build_stock_score(ticker: str, forecast_horizon: int = 15) -> dict:
+def build_stock_score(
+    ticker: str,
+    forecast_horizon: int = 15
+) -> dict:
     ticker = ticker.upper()
 
     cached = score_cache.get(
@@ -21,29 +24,47 @@ def build_stock_score(ticker: str, forecast_horizon: int = 15) -> dict:
     )
 
     if cached is not None:
-        logger.info(f"⚡ Score cache hit {ticker}")
+        logger.info(
+            "Score cache hit for %s",
+            ticker
+        )
         return cached
 
-    sentiment = analyze_news_sentiment(ticker)
+    # NEWS / FINBERT
+    sentiment = get_news_sentiment(
+        ticker=ticker,
+        limit=10,
+    )
 
-    market_df = fetch_market_data(ticker)
+    # MARKET DATA
+    market_df = fetch_market_data(
+        ticker
+    )
+
     price_history = build_price_history(
         market_df=market_df,
         limit=10,
     )
-    technical = compute_technical_analysis(market_df)
 
+    # TECHNICAL ANALYSIS
+    technical = compute_technical_analysis(
+        market_df
+    )
+
+    # MACHINE LEARNING
     ml = train_and_predict(
         ticker=ticker,
         forecast_horizon=forecast_horizon
     )
 
     prediction = ml["prediction"]
+    market_context = ml["market_context"]
 
     latest_close = float(
-        ml["market_context"]["latest_close"]
+        market_context["latest_close"]
     )
 
+    # TARGET PRICE
     prediction["target"] = compute_target_price(
         latest_close=latest_close,
         probability_up=prediction["probability_up"],
@@ -51,50 +72,90 @@ def build_stock_score(ticker: str, forecast_horizon: int = 15) -> dict:
         forecast_horizon=forecast_horizon,
     )
 
+    # SIGNALS
     signals = build_signals(
         sentiment=sentiment,
         technical=technical,
-        ml=ml
+        ml=ml,
     )
 
-    kayro_score = compute_kayro_score(signals)
+    # COMPONENT SCORES
+    finbert_score = float(
+        sentiment.get(
+            "score",
+            0.0
+        )
+    )
+
+    technical_score = float(
+        technical.get(
+            "technical_score",
+            0.0
+        )
+    )
+
+    probability_up = float(
+        prediction.get(
+            "probability_up",
+            50.0
+        )
+    )
+
+    market_score = compute_market_score(
+        market_context
+    )
+
+    # FINAL KAYRO SCORE
+    kayro_score = compute_kayro_score(
+        technical_score=technical_score,
+        probability_up=probability_up,
+        finbert_score=finbert_score,
+        market_score=market_score,
+        signals=signals,
+    )
+
+    recommendation = recommendation_label(
+        kayro_score
+    )
 
     result = {
         "ticker": ticker,
-        "logo_url": build_company_logo_url(ticker),
+        "logo_url": build_company_logo_url(
+            ticker
+        ),
         "kayro_score": kayro_score,
-        "recommendation": recommendation_label(kayro_score),
+        "recommendation": recommendation,
         "confidence": prediction["confidence"],
         "signals": signals,
         "sentiment": sentiment,
         "technical": technical,
         "prediction": prediction,
         "model": ml["model"],
-        "market_context": ml["market_context"],
+        "market_context": market_context,
         "backtest": ml["backtest"],
         "top_features": ml["top_features"],
         "price_history": price_history,
         "disclaimer": (
             "This prediction is for informational purposes only "
             "and is not financial advice."
-        )
+        ),
     }
 
     save_prediction(
         ticker=ticker,
         forecast_horizon=forecast_horizon,
-        predicted_direction=ml["prediction"]["direction"],
-        probability_up=ml["prediction"]["probability_up"],
-        confidence=ml["prediction"]["confidence"],
+        predicted_direction=prediction["direction"],
+        probability_up=prediction["probability_up"],
+        confidence=prediction["confidence"],
         kayro_score=kayro_score,
-        recommendation=recommendation_label(kayro_score),
-        price_at_prediction=ml["market_context"]["latest_close"],
+        recommendation=recommendation,
+        price_at_prediction=latest_close,
     )
 
     score_cache.set(
         ticker=ticker,
         forecast_horizon=forecast_horizon,
-        value=result
+        value=result,
     )
 
     return result

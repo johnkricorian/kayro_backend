@@ -2,7 +2,7 @@ from fastapi import APIRouter
 
 from app.services.finbert import finbert_score
 from app.services.news import fetch_news
-from app.services.sentiment import analyze_news_sentiment
+from app.services.sentiment import get_news_sentiment
 from app.services.market import fetch_market_data
 from app.services.technical import compute_technical_analysis
 from app.services.ml import train_and_predict
@@ -38,7 +38,7 @@ def test_news(ticker: str):
 
 @router.get("/sentiment/{ticker}")
 def test_sentiment(ticker: str):
-    return analyze_news_sentiment(ticker)
+    return get_news_sentiment(ticker)
 
 @router.get("/market/{ticker}")
 def test_market(ticker: str):
