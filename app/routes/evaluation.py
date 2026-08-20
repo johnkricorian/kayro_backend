@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from app.services.prediction_evaluator import evaluate_pending_predictions
+from app.services.prediction_batch import generate_prediction_batch
 from app.database.prediction_repository import (
     get_global_stats,
     get_horizon_stats,
@@ -47,4 +48,10 @@ def get_evaluation_leaderboard(
 ) -> list[dict]:
     return get_leaderboard(
         limit=limit
+    )
+
+@router.post("/generate-batch")
+def generate_batch() -> dict:
+    return generate_prediction_batch(
+        force_refresh=True
     )

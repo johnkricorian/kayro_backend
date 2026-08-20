@@ -16,19 +16,21 @@ MARKET_WEIGHT = 0.10
 
 def build_qeyro_score(
     ticker: str,
-    forecast_horizon: int = 15
+    forecast_horizon: int = 15,
+    force_refresh: bool = False
 ) -> dict:
     ticker = ticker.upper()
 
     cached = score_cache.get(ticker=ticker, forecast_horizon=forecast_horizon)
 
-    if cached is not None:
-        logger.info(
-            "⚡ Qeyro score cache hit %s (%sd)",
+    if not force_refresh:
+        cached = score_cache.get(
             ticker,
             forecast_horizon,
         )
-        return cached
+
+        if cached is not None:
+            return cached
 
     # 1. News sentiment
     sentiment = get_news_sentiment(

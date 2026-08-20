@@ -21,6 +21,21 @@ def save_prediction(
     db: Session = SessionLocal()
 
     try:
+        today = datetime.utcnow().date()
+
+        existing = (
+            db.query(Prediction)
+            .filter(
+                Prediction.ticker == ticker.upper(),
+                Prediction.forecast_horizon == forecast_horizon,
+                func.date(Prediction.created_at) == today.isoformat(),
+            )
+            .first()
+        )
+
+        if existing is not None:
+            return
+
         prediction = Prediction(
             ticker=ticker.upper(),
             forecast_horizon=forecast_horizon,
@@ -588,6 +603,31 @@ def get_leaderboard(
             ),
             reverse=True,
         )[:limit]
+
+    finally:
+        db.close()
+
+def get_today_prediction(
+    ticker: str,
+    forecast_horizon: int,
+) -> Prediction | None:
+    db: Session = SessionLocal()
+
+    try:
+        today = datetime.utcnow().date()
+
+        return (
+            db.query(Prediction)
+            .filter(
+                Prediction.ticker == ticker.upper(),
+                Prediction.forecast_horizon == forecast_horizon,
+                func.date(Prediction.created_at) == today.isoformat(),
+            )
+            .order_by(
+                Prediction.created_at.desc()
+            )
+            .first()
+        )
 
     finally:
         db.close()

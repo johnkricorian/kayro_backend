@@ -31,6 +31,10 @@ from app.routes.social_sentiment import router as social_sentiment_router
 from app.routes.financial_news import router as financial_news_router
 from app.routes.news_sentiment import router as news_sentiment_router
 from app.routes.qeyro_score import router as qeyro_score_router
+from app.jobs.scheduler import (
+    start_scheduler,
+    stop_scheduler,
+)
 
 load_dotenv()
 
@@ -38,22 +42,13 @@ logger = create_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Initializing database")
-    init_db()
+    start_scheduler()
+    yield
+    stop_scheduler()
 
-    logger.info("Warming up XGBoost models")
-    warmup_models()
-
-    logger.info("Starting scheduler")
-
-    try:
-        yield
-    finally:
-        logger.info("Stopping scheduler")
-
-        if scheduler.running:
-            scheduler.shutdown(wait=False)
-
+app = FastAPI(
+    lifespan=lifespan
+)
 
 app = FastAPI(
     title="Kayro Stock API",
