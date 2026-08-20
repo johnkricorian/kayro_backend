@@ -9,50 +9,74 @@ from app.core.exception_handlers import (
 )
 from app.core.exceptions import KayroError
 from app.core.logger import create_logger
+
 from app.database.init_db import init_db
+
+from app.jobs.scheduler import (
+    start_scheduler,
+    stop_scheduler,
+)
+
 from app.routes.evaluation import router as evaluation_router
+from app.routes.financial_news import router as financial_news_router
+from app.routes.internal import router as internal_router
+from app.routes.internal_opportunities import (
+    router as internal_opportunities_router,
+)
 from app.routes.leaderboard import router as leaderboard_router
+from app.routes.market_universe import router as market_universe_router
+from app.routes.news_sentiment import router as news_sentiment_router
 from app.routes.opportunities import router as opportunities_router
 from app.routes.portfolio import router as portfolio_router
-from app.routes.portfolio_analysis import router as portfolio_analysis_router
-from app.routes.portfolio_positions import router as portfolio_positions_router
+from app.routes.portfolio_analysis import (
+    router as portfolio_analysis_router,
+)
+from app.routes.portfolio_positions import (
+    router as portfolio_positions_router,
+)
 from app.routes.predictions import router as predictions_router
-from app.routes.scanner_test_route import router as test_scanner_router
+from app.routes.qeyro_score import router as qeyro_score_router
+from app.routes.scanner_test_route import (
+    router as test_scanner_router,
+)
 from app.routes.score import router as score_router
 from app.routes.sectors import router as sectors_router
+from app.routes.social_sentiment import router as social_sentiment_router
 from app.routes.stats import router as stats_router
 from app.routes.test import router as test_router
-from app.services.model_loader import warmup_models
-from app.jobs.scheduler import scheduler
-from app.routes.internal_opportunities import router as internal_opportunities_router
 from app.routes.user_predictions import router as user_predictions_router
-from app.routes.market_universe import router as market_universe_router
-from app.routes.social_sentiment import router as social_sentiment_router
-from app.routes.financial_news import router as financial_news_router
-from app.routes.news_sentiment import router as news_sentiment_router
-from app.routes.qeyro_score import router as qeyro_score_router
-from app.jobs.scheduler import (start_scheduler, stop_scheduler)
-from app.routes.internal import router as internal_router
+
+from app.services.model_loader import warmup_models
+
 
 load_dotenv()
 
 logger = create_logger(__name__)
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info("🚀 Starting Qeyro API")
+
+    init_db()
+
+    warmup_models()
+
     start_scheduler()
+
     yield
+
     stop_scheduler()
 
-app = FastAPI(
-    lifespan=lifespan
-)
+    logger.info("🛑 Qeyro API stopped")
+
 
 app = FastAPI(
-    title="Kayro Stock API",
+    title="Qeyro Stock API",
     version="1.0.0",
     lifespan=lifespan,
 )
+
 
 app.add_exception_handler(
     KayroError,
@@ -63,6 +87,7 @@ app.add_exception_handler(
     Exception,
     generic_exception_handler,
 )
+
 
 app.include_router(score_router)
 app.include_router(sectors_router)
@@ -84,6 +109,7 @@ app.include_router(financial_news_router)
 app.include_router(news_sentiment_router)
 app.include_router(qeyro_score_router)
 app.include_router(internal_router)
+
 
 @app.get("/")
 def root():
