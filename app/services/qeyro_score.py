@@ -2,6 +2,7 @@ from app.services.sentiment import get_news_sentiment
 from app.services.market import fetch_market_data
 from app.services.technical import compute_technical_analysis
 from app.services.ml import train_and_predict
+from app.services.market_score import compute_market_score
 
 TECHNICAL_WEIGHT = 0.35
 ML_WEIGHT = 0.40
@@ -79,9 +80,13 @@ def build_qeyro_score(
         )
     )
 
-    # Temporary neutral market score.
-    # Later: SPY / QQQ / VIX / market regime.
-    market_score = 0.5
+    market = compute_market_score()
+    market_score = float(
+        market.get(
+            "score",
+            0.5
+        )
+    )
 
     # 7. Qeyro Score
     global_score = (
@@ -155,10 +160,9 @@ def build_qeyro_score(
         "qeyro_score": qeyro_score,
         "recommendation": recommendation,
         "direction_confidence": direction_confidence,
-
+        "market": market,
         "score_breakdown": score_breakdown,
         "weighted_breakdown": weighted_breakdown,
-
         "sentiment": sentiment,
         "technical": technical,
         "prediction": prediction,
