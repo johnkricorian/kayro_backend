@@ -4,7 +4,6 @@ _CACHE: dict[str, tuple[datetime, dict]] = {}
 
 TTL = timedelta(minutes=10)
 
-
 def make_key(
     ticker: str,
     forecast_horizon: int
@@ -30,7 +29,6 @@ def get(
         return None
 
     return value
-
 
 def set(
     ticker: str,

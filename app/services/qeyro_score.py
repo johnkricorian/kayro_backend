@@ -3,6 +3,10 @@ from app.services.market import fetch_market_data
 from app.services.technical import compute_technical_analysis
 from app.services.ml import train_and_predict
 from app.services.market_score import compute_market_score
+from app.services import score_cache
+from app.core.logger import create_logger
+
+logger = create_logger(__name__)
 
 TECHNICAL_WEIGHT = 0.35
 ML_WEIGHT = 0.40
@@ -14,6 +18,16 @@ def build_qeyro_score(
     forecast_horizon: int = 15
 ) -> dict:
     ticker = ticker.upper()
+
+    cached = score_cache.get(ticker=ticker, forecast_horizon=forecast_horizon)
+
+    if cached is not None:
+        logger.info(
+            "⚡ Qeyro score cache hit %s (%sd)",
+            ticker,
+            forecast_horizon,
+        )
+        return cached
 
     # 1. News sentiment
     sentiment = get_news_sentiment(
@@ -155,19 +169,27 @@ def build_qeyro_score(
     }
 
     # 9. API response
-    return {
+    result = {
         "ticker": ticker,
         "qeyro_score": qeyro_score,
         "recommendation": recommendation,
         "direction_confidence": direction_confidence,
-        "market": market,
+
         "score_breakdown": score_breakdown,
         "weighted_breakdown": weighted_breakdown,
+
         "sentiment": sentiment,
         "technical": technical,
         "prediction": prediction,
         "market_context": market_context,
+        "market": market,
     }
+    score_cache.set(
+        ticker=ticker,
+        forecast_horizon=forecast_horizon,
+        value=result,
+    )
+    return result
 
 def clamp(
     value: float,
