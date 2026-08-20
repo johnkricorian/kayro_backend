@@ -31,10 +31,8 @@ from app.routes.social_sentiment import router as social_sentiment_router
 from app.routes.financial_news import router as financial_news_router
 from app.routes.news_sentiment import router as news_sentiment_router
 from app.routes.qeyro_score import router as qeyro_score_router
-from app.jobs.scheduler import (
-    start_scheduler,
-    stop_scheduler,
-)
+from app.jobs.scheduler import (start_scheduler, stop_scheduler)
+from app.routes.internal import router as internal_router
 
 load_dotenv()
 
@@ -85,6 +83,7 @@ app.include_router(social_sentiment_router)
 app.include_router(financial_news_router)
 app.include_router(news_sentiment_router)
 app.include_router(qeyro_score_router)
+app.include_router(internal_router)
 
 @app.get("/")
 def root():
