@@ -5,6 +5,7 @@ from app.services.ml import train_and_predict
 from app.services.market_score import compute_market_score
 from app.services import score_cache
 from app.core.logger import create_logger
+from app.database.prediction_repository import save_prediction
 
 logger = create_logger(__name__)
 
@@ -174,16 +175,30 @@ def build_qeyro_score(
         "qeyro_score": qeyro_score,
         "recommendation": recommendation,
         "direction_confidence": direction_confidence,
-
         "score_breakdown": score_breakdown,
         "weighted_breakdown": weighted_breakdown,
-
         "sentiment": sentiment,
         "technical": technical,
         "prediction": prediction,
         "market_context": market_context,
         "market": market,
     }
+
+    save_prediction(
+        ticker=ticker,
+        forecast_horizon=forecast_horizon,
+        predicted_direction=prediction["direction"],
+        probability_up=prediction["probability_up"],
+        direction_confidence=prediction["direction_confidence"],
+        qeyro_score=qeyro_score,
+        recommendation=recommendation,
+        target_price=prediction["target"],
+        price_at_prediction=latest_close,
+        technical_score=technical_score,
+        news_score=finbert_score,
+        market_score=market_score
+    )
+
     score_cache.set(
         ticker=ticker,
         forecast_horizon=forecast_horizon,

@@ -14,38 +14,83 @@ from app.database.database import Base
 
 class Prediction(Base):
     __tablename__ = "predictions"
+
     id: Mapped[int] = mapped_column(
         Integer,
         primary_key=True,
         index=True
     )
+
     ticker: Mapped[str] = mapped_column(
         String,
         index=True
     )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow,
         index=True
     )
-    forecast_horizon: Mapped[int] = mapped_column(Integer)
-    predicted_direction: Mapped[str] = mapped_column(String)
-    probability_up: Mapped[float] = mapped_column(Float)
-    confidence: Mapped[float] = mapped_column(Float)
-    kayro_score: Mapped[int] = mapped_column(Integer)
-    recommendation: Mapped[str] = mapped_column(String)
+
+    forecast_horizon: Mapped[int] = mapped_column(
+        Integer
+    )
+
+    predicted_direction: Mapped[str] = mapped_column(
+        String
+    )
+
+    probability_up: Mapped[float] = mapped_column(
+        Float
+    )
+
+    direction_confidence: Mapped[float] = mapped_column(
+        Float
+    )
+
+    qeyro_score: Mapped[int] = mapped_column(
+        Integer
+    )
+
+    recommendation: Mapped[str] = mapped_column(
+        String
+    )
+
+    target_price: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True
+    )
+
     price_at_prediction: Mapped[float | None] = mapped_column(
         Float,
         nullable=True
     )
+
+    technical_score: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True
+    )
+
+    news_score: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True
+    )
+
+    market_score: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True
+    )
+
     price_after_horizon: Mapped[float | None] = mapped_column(
         Float,
         nullable=True
     )
+
     prediction_correct: Mapped[bool | None] = mapped_column(
         Boolean,
         nullable=True
     )
+
     evaluated_at: Mapped[datetime | None] = mapped_column(
         DateTime,
         nullable=True

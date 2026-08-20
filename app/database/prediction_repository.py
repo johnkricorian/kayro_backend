@@ -11,25 +11,31 @@ def save_prediction(
     forecast_horizon: int,
     predicted_direction: str,
     probability_up: float,
-    confidence: float,
-    kayro_score: int,
+    direction_confidence: float,
+    qeyro_score: int,
     recommendation: str,
+    target_price: float,
     price_at_prediction: float,
+    technical_score: float,
+    news_score: float,
+    market_score: float,
 ):
-
     db: Session = SessionLocal()
 
     try:
-
         prediction = Prediction(
             ticker=ticker,
             forecast_horizon=forecast_horizon,
             predicted_direction=predicted_direction,
             probability_up=probability_up,
-            confidence=confidence,
-            kayro_score=kayro_score,
+            direction_confidence=direction_confidence,
+            qeyro_score=qeyro_score,
             recommendation=recommendation,
+            target_price=target_price,
             price_at_prediction=price_at_prediction,
+            technical_score=technical_score,
+            news_score=news_score,
+            market_score=market_score,
         )
 
         db.add(prediction)
