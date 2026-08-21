@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from sqlalchemy import desc, func
+from sqlalchemy import case, desc, func
 from sqlalchemy.orm import Session
 from app.database.database import SessionLocal
 from app.database.models import Prediction
@@ -334,9 +334,12 @@ def get_horizon_stats() -> list[dict]:
                     Prediction.id
                 ).label("evaluated"),
                 func.sum(
-                    func.coalesce(
-                        Prediction.prediction_correct,
-                        0
+                    case(
+                        (
+                            Prediction.prediction_correct.is_(True),
+                            1
+                        ),
+                        else_=0
                     )
                 ).label("correct"),
                 func.avg(
@@ -404,6 +407,94 @@ def get_horizon_stats() -> list[dict]:
             })
 
         return stats
+
+    finally:
+        db.close()
+
+
+def get_leaderboard(
+    limit: int = 20
+) -> list[dict]:
+    db: Session = SessionLocal()
+
+    try:
+        rows = (
+            db.query(
+                Prediction.ticker,
+                func.count(
+                    Prediction.id
+                ).label("total"),
+                func.sum(
+                    case(
+                        (
+                            Prediction.prediction_correct.is_(True),
+                            1
+                        ),
+                        else_=0
+                    )
+                ).label("correct"),
+                func.avg(
+                    Prediction.direction_confidence
+                ).label("avg_confidence"),
+                func.avg(
+                    Prediction.qeyro_score
+                ).label("avg_score"),
+            )
+            .filter(
+                Prediction.prediction_correct.is_not(None)
+            )
+            .group_by(
+                Prediction.ticker
+            )
+            .all()
+        )
+
+        leaderboard = []
+
+        for row in rows:
+            total = int(
+                row.total or 0
+            )
+
+            correct = int(
+                row.correct or 0
+            )
+
+            accuracy = (
+                round(
+                    correct / total * 100,
+                    2
+                )
+                if total > 0
+                else 0.0
+            )
+
+            leaderboard.append({
+                "ticker": row.ticker,
+                "predictions": total,
+                "correct_predictions": correct,
+                "accuracy": accuracy,
+                "average_direction_confidence": round(
+                    float(
+                        row.avg_confidence or 0
+                    ),
+                    2
+                ),
+                "average_qeyro_score": round(
+                    float(
+                        row.avg_score or 0
+                    ),
+                    2
+                ),
+            })
+
+        return sorted(
+            leaderboard,
+            key=lambda item: (
+                item["accuracy"]
+            ),
+            reverse=True,
+        )[:limit]
 
     finally:
         db.close()
@@ -533,91 +624,6 @@ def _score_in_bucket(
         return False
 
     return True
-
-
-def get_leaderboard(
-    limit: int = 20
-) -> list[dict]:
-    db: Session = SessionLocal()
-
-    try:
-        rows = (
-            db.query(
-                Prediction.ticker,
-                func.count(
-                    Prediction.id
-                ).label("total"),
-                func.sum(
-                    func.coalesce(
-                        Prediction.prediction_correct,
-                        0
-                    )
-                ).label("correct"),
-                func.avg(
-                    Prediction.direction_confidence
-                ).label("avg_confidence"),
-                func.avg(
-                    Prediction.qeyro_score
-                ).label("avg_score"),
-            )
-            .filter(
-                Prediction.prediction_correct.is_not(None)
-            )
-            .group_by(
-                Prediction.ticker
-            )
-            .all()
-        )
-
-        leaderboard = []
-
-        for row in rows:
-            total = int(
-                row.total or 0
-            )
-
-            correct = int(
-                row.correct or 0
-            )
-
-            accuracy = (
-                round(
-                    correct / total * 100,
-                    2
-                )
-                if total > 0
-                else 0.0
-            )
-
-            leaderboard.append({
-                "ticker": row.ticker,
-                "predictions": total,
-                "correct_predictions": correct,
-                "accuracy": accuracy,
-                "average_direction_confidence": round(
-                    float(
-                        row.avg_confidence or 0
-                    ),
-                    2
-                ),
-                "average_qeyro_score": round(
-                    float(
-                        row.avg_score or 0
-                    ),
-                    2
-                ),
-            })
-
-        return sorted(
-            leaderboard,
-            key=lambda item: (
-                item["accuracy"]
-            ),
-            reverse=True,
-        )[:limit]
-
-    finally:
-        db.close()
 
 def get_today_prediction(
     ticker: str,
