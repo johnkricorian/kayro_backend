@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 from app.database.database import SessionLocal
@@ -21,14 +21,26 @@ def save_prediction(
     db: Session = SessionLocal()
 
     try:
-        today = datetime.utcnow().date()
+        now = datetime.utcnow()
+
+        start_of_day = datetime(
+            year=now.year,
+            month=now.month,
+            day=now.day,
+        )
+
+        end_of_day = (
+            start_of_day
+            + timedelta(days=1)
+        )
 
         existing = (
             db.query(Prediction)
             .filter(
                 Prediction.ticker == ticker.upper(),
                 Prediction.forecast_horizon == forecast_horizon,
-                func.date(Prediction.created_at) == today.isoformat(),
+                Prediction.created_at >= start_of_day,
+                Prediction.created_at < end_of_day,
             )
             .first()
         )

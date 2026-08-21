@@ -1,6 +1,5 @@
 from app.services.fmp_client import fmp_client
 
-
 def get_stock_news(
     ticker: str,
     limit: int = 20
