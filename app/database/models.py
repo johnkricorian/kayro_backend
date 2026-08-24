@@ -96,6 +96,46 @@ class Prediction(Base):
         nullable=True
     )
 
+    actual_direction: Mapped[str | None] = mapped_column(
+        String,
+        nullable=True
+    )
+
+    stock_return: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True
+    )
+
+    spy_entry_price: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True
+    )
+
+    spy_exit_price: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True
+    )
+
+    spy_return: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True
+    )
+
+    alpha: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True
+    )
+
+    short_return: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True
+    )
+
+    evaluation_market_date: Mapped[datetime | None] = mapped_column(
+        DateTime,
+        nullable=True
+    )
+
 class PortfolioPosition(Base):
     __tablename__ = "portfolio_positions"
 

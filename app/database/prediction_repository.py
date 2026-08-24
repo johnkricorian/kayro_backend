@@ -14,6 +14,7 @@ def save_prediction(
     recommendation: str,
     target_price: float,
     price_at_prediction: float,
+    spy_entry_price: float,
     technical_score: float,
     news_score: float,
     market_score: float,
@@ -45,6 +46,8 @@ def save_prediction(
             .first()
         )
 
+        # Idempotence:
+        # only one prediction per ticker/horizon/day.
         if existing is not None:
             return
 
@@ -58,6 +61,7 @@ def save_prediction(
             recommendation=recommendation,
             target_price=target_price,
             price_at_prediction=price_at_prediction,
+            spy_entry_price=spy_entry_price,
             technical_score=technical_score,
             news_score=news_score,
             market_score=market_score,
@@ -104,12 +108,18 @@ def get_pending_predictions() -> list[Prediction]:
     finally:
         db.close()
 
-
 def update_prediction_result(
     prediction_id: int,
     price_after_horizon: float,
     prediction_correct: bool,
-) -> None:
+    actual_direction: str,
+    stock_return: float,
+    spy_exit_price: float,
+    spy_return: float,
+    alpha: float,
+    short_return: float | None,
+    evaluation_market_date: datetime,
+) -> bool:
     db: Session = SessionLocal()
 
     try:
@@ -122,7 +132,12 @@ def update_prediction_result(
         )
 
         if prediction is None:
-            return
+            return False
+
+        # Idempotence:
+        # never evaluate the same prediction twice.
+        if prediction.prediction_correct is not None:
+            return False
 
         prediction.price_after_horizon = (
             price_after_horizon
@@ -132,11 +147,41 @@ def update_prediction_result(
             prediction_correct
         )
 
+        prediction.actual_direction = (
+            actual_direction
+        )
+
+        prediction.stock_return = (
+            stock_return
+        )
+
+        prediction.spy_exit_price = (
+            spy_exit_price
+        )
+
+        prediction.spy_return = (
+            spy_return
+        )
+
+        prediction.alpha = (
+            alpha
+        )
+
+        prediction.short_return = (
+            short_return
+        )
+
+        prediction.evaluation_market_date = (
+            evaluation_market_date
+        )
+
         prediction.evaluated_at = (
             datetime.utcnow()
         )
 
         db.commit()
+
+        return True
 
     finally:
         db.close()

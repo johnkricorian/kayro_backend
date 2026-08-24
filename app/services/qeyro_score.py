@@ -21,12 +21,11 @@ def build_qeyro_score(
 ) -> dict:
     ticker = ticker.upper()
 
-    cached = score_cache.get(ticker=ticker, forecast_horizon=forecast_horizon)
-
+    # 0. Cache
     if not force_refresh:
         cached = score_cache.get(
-            ticker,
-            forecast_horizon,
+            ticker=ticker,
+            forecast_horizon=forecast_horizon,
         )
 
         if cached is not None:
@@ -97,7 +96,9 @@ def build_qeyro_score(
         )
     )
 
+    # 7. Market score
     market = compute_market_score()
+
     market_score = float(
         market.get(
             "score",
@@ -105,7 +106,12 @@ def build_qeyro_score(
         )
     )
 
-    # 7. Qeyro Score
+    # Capture SPY at prediction time.
+    spy_entry_price = float(
+        market["spy"]["latest_close"]
+    )
+
+    # 8. Qeyro Score
     global_score = (
         technical_score * TECHNICAL_WEIGHT
         + probability_up_score * ML_WEIGHT
@@ -128,7 +134,7 @@ def build_qeyro_score(
         )
     )
 
-    # 8. Score breakdown
+    # 9. Score breakdown
     score_breakdown = {
         "technical": round(
             technical_score * 100
@@ -171,7 +177,7 @@ def build_qeyro_score(
         ),
     }
 
-    # 9. API response
+    # 10. API response
     result = {
         "ticker": ticker,
         "qeyro_score": qeyro_score,
@@ -186,6 +192,7 @@ def build_qeyro_score(
         "market": market,
     }
 
+    # 11. Persist prediction
     save_prediction(
         ticker=ticker,
         forecast_horizon=forecast_horizon,
@@ -196,16 +203,19 @@ def build_qeyro_score(
         recommendation=recommendation,
         target_price=prediction["target"],
         price_at_prediction=latest_close,
+        spy_entry_price=spy_entry_price,
         technical_score=technical_score,
         news_score=finbert_score,
-        market_score=market_score
+        market_score=market_score,
     )
 
+    # 12. Cache
     score_cache.set(
         ticker=ticker,
         forecast_horizon=forecast_horizon,
         value=result,
     )
+
     return result
 
 def clamp(
