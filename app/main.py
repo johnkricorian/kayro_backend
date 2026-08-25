@@ -1,6 +1,16 @@
 from contextlib import asynccontextmanager
 
+from pathlib import Path
+
 from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+ENV_FILE = BASE_DIR / ".env"
+
+load_dotenv(
+    dotenv_path=ENV_FILE
+)
+
 from fastapi import FastAPI
 
 from app.core.exception_handlers import (
@@ -49,8 +59,6 @@ from app.routes.user_predictions import router as user_predictions_router
 from app.services.model_loader import warmup_models
 
 
-load_dotenv()
-
 logger = create_logger(__name__)
 
 
@@ -59,9 +67,7 @@ async def lifespan(app: FastAPI):
     logger.info("🚀 Starting Qeyro API")
 
     init_db()
-
     warmup_models()
-
     start_scheduler()
 
     yield
