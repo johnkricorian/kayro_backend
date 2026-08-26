@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.services.prediction_evaluator import (
     evaluate_pending_predictions,
+    get_pending_evaluation_stats,
 )
 from app.services.prediction_batch import (
     generate_prediction_batch,
@@ -26,14 +27,24 @@ router = APIRouter(
 def run_evaluation() -> dict:
     return evaluate_pending_predictions()
 
-
 @router.get("/stats")
 def get_evaluation_stats() -> dict:
+    global_stats = get_global_stats()
+    pending_evaluation = (
+        get_pending_evaluation_stats()
+    )
+    horizon_stats = get_horizon_stats()
+    score_bucket_stats = (
+        get_score_bucket_stats()
+    )
+    viability_stats = get_viability_stats()
+
     return {
-        "global": get_global_stats(),
-        "by_horizon": get_horizon_stats(),
-        "by_score_bucket": get_score_bucket_stats(),
-        "viability": get_viability_stats(),
+        "global": global_stats,
+        "pending_evaluation": pending_evaluation,
+        "by_horizon": horizon_stats,
+        "by_score_bucket": score_bucket_stats,
+        "viability": viability_stats,
     }
 
 

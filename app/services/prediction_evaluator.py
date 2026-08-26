@@ -479,3 +479,113 @@ def is_prediction_correct(
         )
 
     return False
+
+def get_pending_evaluation_stats() -> dict:
+    predictions = get_pending_predictions()
+
+    if not predictions:
+        return {
+            "pending_predictions": 0,
+            "not_due_predictions": 0,
+            "due_predictions": 0,
+            "overdue_predictions": 0,
+            "errors": [],
+        }
+
+    spy_df = fetch_market_data(
+        ticker="SPY",
+        period="1y",
+        interval="1d",
+    )
+
+    spy_df = prepare_market_dataframe(
+        spy_df
+    )
+
+    if spy_df.empty:
+        return {
+            "pending_predictions": len(
+                predictions
+            ),
+            "not_due_predictions": 0,
+            "due_predictions": 0,
+            "overdue_predictions": 0,
+            "errors": [{
+                "ticker": "SPY",
+                "error": (
+                    "SPY market data unavailable"
+                ),
+            }],
+        }
+
+    latest_market_date = (
+        spy_df.iloc[-1]["Date"]
+        .normalize()
+    )
+
+    not_due = 0
+    due = 0
+    overdue = 0
+    errors = []
+
+    for prediction in predictions:
+        try:
+            evaluation_dates = (
+                get_evaluation_dates(
+                    spy_df=spy_df,
+                    created_at=(
+                        prediction.created_at
+                    ),
+                    forecast_horizon=(
+                        prediction.forecast_horizon
+                    ),
+                )
+            )
+
+            if evaluation_dates is None:
+                not_due += 1
+                continue
+
+            _, exit_date = evaluation_dates
+
+            exit_date = (
+                exit_date.normalize()
+            )
+
+            if exit_date < latest_market_date:
+                overdue += 1
+
+            elif exit_date == latest_market_date:
+                due += 1
+
+            else:
+                not_due += 1
+
+        except Exception as error:
+            errors.append({
+                "prediction_id": (
+                    prediction.id
+                ),
+                "ticker": (
+                    prediction.ticker
+                ),
+                "forecast_horizon": (
+                    prediction.forecast_horizon
+                ),
+                "error": str(error),
+            })
+
+    return {
+        "pending_predictions": len(
+            predictions
+        ),
+        "not_due_predictions": not_due,
+        "due_predictions": due,
+        "overdue_predictions": overdue,
+        "latest_market_date": (
+            latest_market_date
+            .date()
+            .isoformat()
+        ),
+        "errors": errors,
+    }
