@@ -685,7 +685,10 @@ def get_today_prediction(
     db: Session = SessionLocal()
 
     try:
-        today = datetime.utcnow().date()
+        today = (
+            datetime.utcnow()
+            .date()
+        )
 
         return (
             db.query(Prediction)
@@ -738,6 +741,7 @@ def _build_viability_stats(
             "evaluated_predictions": 0,
             "directional_predictions": 0,
             "sample_size": 0,
+            "sample_maturity": "insufficient",
             "direction_accuracy": 0.0,
             "confidence_interval_95": None,
             "balanced_accuracy": None,
@@ -857,6 +861,12 @@ def _build_viability_stats(
         "sample_size": (
             direction_metrics[
                 "sample_size"
+            ]
+        ),
+
+        "sample_maturity": (
+            direction_metrics[
+                "sample_maturity"
             ]
         ),
 
@@ -1077,6 +1087,12 @@ def _build_viability_group(
             ]
         ),
 
+        "sample_maturity": (
+            metrics[
+                "sample_maturity"
+            ]
+        ),
+
         "direction_accuracy": (
             metrics[
                 "direction_accuracy"
@@ -1208,6 +1224,12 @@ def _compute_direction_metrics(
         )
     )
 
+    sample_maturity = (
+        get_sample_maturity(
+            sample_size=total,
+        )
+    )
+
     bullish_support = (
         tp + fn
     )
@@ -1277,6 +1299,10 @@ def _compute_direction_metrics(
 
     return {
         "sample_size": total,
+
+        "sample_maturity": (
+            sample_maturity
+        ),
 
         "direction_accuracy": (
             direction_accuracy
@@ -1494,3 +1520,18 @@ def calculate_wilson_confidence_interval(
             2,
         ),
     }
+
+
+def get_sample_maturity(
+    sample_size: int,
+) -> str:
+    if sample_size < 30:
+        return "insufficient"
+
+    if sample_size < 100:
+        return "early"
+
+    if sample_size < 300:
+        return "indicative"
+
+    return "reliable"
