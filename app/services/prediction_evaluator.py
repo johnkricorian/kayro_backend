@@ -1,4 +1,5 @@
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
@@ -11,6 +12,11 @@ from app.services.market import fetch_market_data
 
 NEUTRAL_THRESHOLD = 0.02
 
+MARKET_TIMEZONE = ZoneInfo(
+    "America/New_York"
+)
+
+EVALUATION_READY_HOUR = 18
 
 def evaluate_pending_predictions() -> dict:
     predictions = get_pending_predictions()
@@ -36,6 +42,10 @@ def evaluate_pending_predictions() -> dict:
     )
 
     spy_df = prepare_market_dataframe(
+        spy_df
+    )
+
+    spy_df = keep_completed_market_sessions(
         spy_df
     )
 
@@ -502,6 +512,10 @@ def get_pending_evaluation_stats() -> dict:
         spy_df
     )
 
+    spy_df = keep_completed_market_sessions(
+        spy_df
+    )
+
     if spy_df.empty:
         return {
             "pending_predictions": len(
@@ -589,3 +603,75 @@ def get_pending_evaluation_stats() -> dict:
         ),
         "errors": errors,
     }
+
+def keep_completed_market_sessions(
+    df: pd.DataFrame,
+    now: datetime | None = None,
+) -> pd.DataFrame:
+    if df.empty:
+        return df
+
+    current_time = (
+        now.astimezone(MARKET_TIMEZONE)
+        if now is not None
+        else datetime.now(MARKET_TIMEZONE)
+    )
+
+    current_market_date = pd.Timestamp(
+        current_time.date()
+    )
+
+    # Before 18:00 New York, today's daily
+    # candle may still be incomplete or not
+    # fully settled by the data provider.
+    if (
+        current_time.hour
+        < EVALUATION_READY_HOUR
+    ):
+        return (
+            df[
+                df["Date"].dt.normalize()
+                < current_market_date
+            ]
+            .reset_index(drop=True)
+        )
+
+    return df
+
+def test_current_market_session_is_available_after_evaluation_time():
+    df = make_market_df(
+        dates=[
+            "2026-08-26",
+            "2026-08-27",
+        ],
+        closes=[
+            200.0,
+            201.0,
+        ],
+    )
+
+    prepared = (
+        prediction_evaluator
+        .prepare_market_dataframe(df)
+    )
+
+    now = datetime(
+        2026,
+        8,
+        27,
+        18,
+        30,
+        tzinfo=ZoneInfo(
+            "America/New_York"
+        ),
+    )
+
+    result = (
+        prediction_evaluator
+        .keep_completed_market_sessions(
+            prepared,
+            now=now,
+        )
+    )
+
+    assert len(result) == 2

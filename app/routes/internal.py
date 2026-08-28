@@ -12,6 +12,7 @@ from app.services.prediction_batch import (
 )
 from app.services.prediction_evaluator import (
     evaluate_pending_predictions,
+    get_pending_evaluation_stats,
 )
 
 
@@ -21,7 +22,7 @@ router = APIRouter(
 )
 
 
-def _validate_internal_api_key(
+def validate_internal_api_key(
     x_internal_api_key: str | None,
 ) -> None:
     expected_key = os.getenv(
@@ -53,7 +54,7 @@ def daily_prediction_batch(
         default=None
     ),
 ) -> dict:
-    _validate_internal_api_key(
+    validate_internal_api_key(
         x_internal_api_key
     )
 
@@ -68,8 +69,51 @@ def evaluate_predictions(
         default=None
     ),
 ) -> dict:
-    _validate_internal_api_key(
+    validate_internal_api_key(
         x_internal_api_key
     )
 
     return evaluate_pending_predictions()
+
+
+@router.get("/evaluation-health")
+def evaluation_health(
+    x_internal_api_key: str | None = Header(
+        default=None
+    ),
+) -> dict:
+    validate_internal_api_key(
+        x_internal_api_key
+    )
+
+    stats = get_pending_evaluation_stats()
+
+    overdue = stats[
+        "overdue_predictions"
+    ]
+
+    health_status = (
+        "degraded"
+        if overdue > 0
+        else "ok"
+    )
+
+    return {
+        "status": health_status,
+        "pending": stats[
+            "pending_predictions"
+        ],
+        "not_due": stats[
+            "not_due_predictions"
+        ],
+        "due": stats[
+            "due_predictions"
+        ],
+        "overdue": overdue,
+        "latest_market_date": stats.get(
+            "latest_market_date"
+        ),
+        "errors": stats[
+            "errors"
+        ],
+    }
