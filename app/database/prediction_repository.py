@@ -1,8 +1,13 @@
+import math
+
 from datetime import datetime, timedelta
+
 from sqlalchemy import case, desc, func
 from sqlalchemy.orm import Session
+
 from app.database.database import SessionLocal
 from app.database.models import Prediction
+
 
 def save_prediction(
     ticker: str,
@@ -75,7 +80,7 @@ def save_prediction(
 
 
 def get_predictions(
-    limit: int = 100
+    limit: int = 100,
 ) -> list[Prediction]:
     db: Session = SessionLocal()
 
@@ -107,6 +112,7 @@ def get_pending_predictions() -> list[Prediction]:
 
     finally:
         db.close()
+
 
 def update_prediction_result(
     prediction_id: int,
@@ -253,7 +259,7 @@ def get_global_stats() -> dict:
         accuracy = (
             round(
                 correct / evaluated * 100,
-                2
+                2,
             )
             if evaluated > 0
             else 0.0
@@ -269,11 +275,11 @@ def get_global_stats() -> dict:
             "accuracy": accuracy,
             "average_direction_confidence": round(
                 float(avg_confidence),
-                2
+                2,
             ),
             "average_qeyro_score": round(
                 float(avg_score),
-                2
+                2,
             ),
             "bullish_predictions": bullish,
             "bearish_predictions": bearish,
@@ -284,7 +290,7 @@ def get_global_stats() -> dict:
 
 
 def get_ticker_stats(
-    ticker: str
+    ticker: str,
 ) -> dict:
     ticker = ticker.upper()
 
@@ -339,7 +345,7 @@ def get_ticker_stats(
         accuracy = (
             round(
                 correct / evaluated * 100,
-                2
+                2,
             )
             if evaluated > 0
             else 0.0
@@ -356,11 +362,11 @@ def get_ticker_stats(
             "accuracy": accuracy,
             "average_direction_confidence": round(
                 float(avg_confidence),
-                2
+                2,
             ),
             "average_qeyro_score": round(
                 float(avg_score),
-                2
+                2,
             ),
         }
 
@@ -382,9 +388,9 @@ def get_horizon_stats() -> list[dict]:
                     case(
                         (
                             Prediction.prediction_correct.is_(True),
-                            1
+                            1,
                         ),
-                        else_=0
+                        else_=0,
                     )
                 ).label("correct"),
                 func.avg(
@@ -420,7 +426,7 @@ def get_horizon_stats() -> list[dict]:
             accuracy = (
                 round(
                     correct / evaluated * 100,
-                    2
+                    2,
                 )
                 if evaluated > 0
                 else 0.0
@@ -441,13 +447,13 @@ def get_horizon_stats() -> list[dict]:
                     float(
                         row.avg_qeyro_score or 0
                     ),
-                    2
+                    2,
                 ),
                 "average_direction_confidence": round(
                     float(
                         row.avg_confidence or 0
                     ),
-                    2
+                    2,
                 ),
             })
 
@@ -458,7 +464,7 @@ def get_horizon_stats() -> list[dict]:
 
 
 def get_leaderboard(
-    limit: int = 20
+    limit: int = 20,
 ) -> list[dict]:
     db: Session = SessionLocal()
 
@@ -473,9 +479,9 @@ def get_leaderboard(
                     case(
                         (
                             Prediction.prediction_correct.is_(True),
-                            1
+                            1,
                         ),
-                        else_=0
+                        else_=0,
                     )
                 ).label("correct"),
                 func.avg(
@@ -508,7 +514,7 @@ def get_leaderboard(
             accuracy = (
                 round(
                     correct / total * 100,
-                    2
+                    2,
                 )
                 if total > 0
                 else 0.0
@@ -523,13 +529,13 @@ def get_leaderboard(
                     float(
                         row.avg_confidence or 0
                     ),
-                    2
+                    2,
                 ),
                 "average_qeyro_score": round(
                     float(
                         row.avg_score or 0
                     ),
-                    2
+                    2,
                 ),
             })
 
@@ -543,6 +549,7 @@ def get_leaderboard(
 
     finally:
         db.close()
+
 
 def get_score_bucket_stats() -> list[dict]:
     db: Session = SessionLocal()
@@ -610,7 +617,7 @@ def get_score_bucket_stats() -> list[dict]:
             accuracy = (
                 round(
                     correct / total * 100,
-                    2
+                    2,
                 )
                 if total > 0
                 else 0.0
@@ -643,11 +650,11 @@ def get_score_bucket_stats() -> list[dict]:
                 "accuracy": accuracy,
                 "average_qeyro_score": round(
                     avg_score,
-                    2
+                    2,
                 ),
                 "average_direction_confidence": round(
                     avg_confidence,
-                    2
+                    2,
                 ),
             })
 
@@ -670,6 +677,7 @@ def _score_in_bucket(
 
     return True
 
+
 def get_today_prediction(
     ticker: str,
     forecast_horizon: int,
@@ -684,7 +692,9 @@ def get_today_prediction(
             .filter(
                 Prediction.ticker == ticker.upper(),
                 Prediction.forecast_horizon == forecast_horizon,
-                func.date(Prediction.created_at) == today.isoformat(),
+                func.date(
+                    Prediction.created_at
+                ) == today.isoformat(),
             )
             .order_by(
                 Prediction.created_at.desc()
@@ -694,6 +704,7 @@ def get_today_prediction(
 
     finally:
         db.close()
+
 
 def get_viability_stats() -> dict:
     db: Session = SessionLocal()
@@ -714,16 +725,21 @@ def get_viability_stats() -> dict:
     finally:
         db.close()
 
+
 def _build_viability_stats(
     predictions: list[Prediction],
 ) -> dict:
-    total = len(predictions)
+    total = len(
+        predictions
+    )
 
     if total == 0:
         return {
             "evaluated_predictions": 0,
             "directional_predictions": 0,
+            "sample_size": 0,
             "direction_accuracy": 0.0,
+            "confidence_interval_95": None,
             "balanced_accuracy": None,
             "bullish_precision": None,
             "bearish_precision": None,
@@ -838,9 +854,21 @@ def _build_viability_stats(
             directional
         ),
 
+        "sample_size": (
+            direction_metrics[
+                "sample_size"
+            ]
+        ),
+
         "direction_accuracy": (
             direction_metrics[
                 "direction_accuracy"
+            ]
+        ),
+
+        "confidence_interval_95": (
+            direction_metrics[
+                "confidence_interval_95"
             ]
         ),
 
@@ -1043,9 +1071,21 @@ def _build_viability_group(
             directional
         ),
 
+        "sample_size": (
+            metrics[
+                "sample_size"
+            ]
+        ),
+
         "direction_accuracy": (
             metrics[
                 "direction_accuracy"
+            ]
+        ),
+
+        "confidence_interval_95": (
+            metrics[
+                "confidence_interval_95"
             ]
         ),
 
@@ -1112,6 +1152,7 @@ def _build_viability_group(
         ),
     }
 
+
 def _compute_direction_metrics(
     predictions: list[Prediction],
 ) -> dict:
@@ -1158,6 +1199,13 @@ def _compute_direction_metrics(
         + tn
         + fp
         + fn
+    )
+
+    confidence_interval_95 = (
+        calculate_wilson_confidence_interval(
+            successes=tp + tn,
+            sample_size=total,
+        )
     )
 
     bullish_support = (
@@ -1228,22 +1276,33 @@ def _compute_direction_metrics(
     )
 
     return {
+        "sample_size": total,
+
         "direction_accuracy": (
             direction_accuracy
         ),
+
+        "confidence_interval_95": (
+            confidence_interval_95
+        ),
+
         "balanced_accuracy": (
             balanced_accuracy
         ),
+
         "bullish_precision": (
             bullish_precision
         ),
+
         "bearish_precision": (
             bearish_precision
         ),
+
         "class_support": {
             "actual_bullish": bullish_support,
             "actual_bearish": bearish_support,
         },
+
         "confusion_matrix": {
             "actual_bullish": {
                 "predicted_bullish": tp,
@@ -1256,13 +1315,16 @@ def _compute_direction_metrics(
         },
     }
 
+
 def _normalize_direction(
     direction: str | None,
 ) -> str:
     if not direction:
         return "Neutral"
 
-    normalized = direction.lower()
+    normalized = (
+        direction.lower()
+    )
 
     if "bullish" in normalized:
         return "Bullish"
@@ -1284,10 +1346,14 @@ def _is_relative_prediction_success(
     )
 
     if direction == "Bullish":
-        return prediction.alpha > 0
+        return (
+            prediction.alpha > 0
+        )
 
     if direction == "Bearish":
-        return prediction.alpha < 0
+        return (
+            prediction.alpha < 0
+        )
 
     return False
 
@@ -1319,7 +1385,10 @@ def _ratio(
     if denominator == 0:
         return 0.0
 
-    return numerator / denominator
+    return (
+        numerator
+        / denominator
+    )
 
 
 def _percentage_ratio(
@@ -1362,4 +1431,66 @@ def _empty_confusion_matrix() -> dict:
             "predicted_bullish": 0,
             "predicted_bearish": 0,
         },
+    }
+
+
+def calculate_wilson_confidence_interval(
+    successes: int,
+    sample_size: int,
+    z: float = 1.96,
+) -> dict | None:
+    if sample_size == 0:
+        return None
+
+    proportion = (
+        successes
+        / sample_size
+    )
+
+    z_squared = (
+        z ** 2
+    )
+
+    denominator = (
+        1
+        + z_squared / sample_size
+    )
+
+    center = (
+        proportion
+        + z_squared
+        / (2 * sample_size)
+    ) / denominator
+
+    margin = (
+        z
+        * math.sqrt(
+            (
+                proportion
+                * (1 - proportion)
+                + z_squared
+                / (4 * sample_size)
+            )
+            / sample_size
+        )
+        / denominator
+    )
+
+    return {
+        "lower": round(
+            max(
+                0.0,
+                center - margin,
+            )
+            * 100,
+            2,
+        ),
+        "upper": round(
+            min(
+                1.0,
+                center + margin,
+            )
+            * 100,
+            2,
+        ),
     }
