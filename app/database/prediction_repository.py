@@ -124,6 +124,8 @@ def update_prediction_result(
     spy_return: float,
     alpha: float,
     short_return: float | None,
+    strategy_return: float,
+    strategy_alpha: float,
     evaluation_market_date: datetime,
 ) -> bool:
     db: Session = SessionLocal()
@@ -175,6 +177,14 @@ def update_prediction_result(
 
         prediction.short_return = (
             short_return
+        )
+
+        prediction.strategy_return = (
+            strategy_return
+        )
+
+        prediction.strategy_alpha = (
+            strategy_alpha
         )
 
         prediction.evaluation_market_date = (
@@ -718,6 +728,10 @@ def get_viability_stats() -> dict:
             .filter(
                 Prediction.prediction_correct.is_not(None)
             )
+            .order_by(
+                Prediction.created_at.asc(),
+                Prediction.id.asc(),
+            )
             .all()
         )
 
@@ -732,9 +746,7 @@ def get_viability_stats() -> dict:
 def _build_viability_stats(
     predictions: list[Prediction],
 ) -> dict:
-    total = len(
-        predictions
-    )
+    total = len(predictions)
 
     if total == 0:
         return {
@@ -757,6 +769,11 @@ def _build_viability_stats(
             "beat_spy_rate": 0.0,
             "relative_prediction_success_rate": 0.0,
             "average_short_return": 0.0,
+            "average_strategy_return": 0.0,
+            "average_strategy_alpha": 0.0,
+            "cumulative_strategy_return": 0.0,
+            "max_drawdown": 0.0,
+            "sharpe_ratio": None,
             "confusion_matrix": (
                 _empty_confusion_matrix()
             ),
@@ -808,6 +825,48 @@ def _build_viability_stats(
         for prediction in predictions
         if prediction.short_return is not None
     ]
+
+    strategy_returns = [
+        strategy_return
+        for prediction in predictions
+        if (
+            strategy_return := getattr(
+                prediction,
+                "strategy_return",
+                None,
+            )
+        ) is not None
+    ]
+
+    strategy_alphas = [
+        strategy_alpha
+        for prediction in predictions
+        if (
+            strategy_alpha := getattr(
+                prediction,
+                "strategy_alpha",
+                None,
+            )
+        ) is not None
+    ]
+
+    cumulative_strategy_return = (
+        calculate_cumulative_return(
+            strategy_returns
+        )
+    )
+
+    max_drawdown = (
+        calculate_max_drawdown(
+            strategy_returns
+        )
+    )
+
+    sharpe_ratio = (
+        calculate_sharpe_ratio(
+            strategy_returns
+        )
+    )
 
     beating_spy = [
         prediction
@@ -924,8 +983,6 @@ def _build_viability_stats(
             )
         ),
 
-        # Literal stock outperformance:
-        # stock_return > SPY return.
         "beat_spy_rate": (
             _percentage_ratio(
                 len(beating_spy),
@@ -933,9 +990,6 @@ def _build_viability_stats(
             )
         ),
 
-        # Direction-aware relative success:
-        # Bullish -> alpha > 0
-        # Bearish -> alpha < 0
         "relative_prediction_success_rate": (
             _percentage_ratio(
                 len(relative_success),
@@ -943,12 +997,34 @@ def _build_viability_stats(
             )
         ),
 
-        # Only bearish predictions have
-        # a short_return.
         "average_short_return": (
             _percentage_average(
                 short_returns
             )
+        ),
+
+        "average_strategy_return": (
+            _percentage_average(
+                strategy_returns
+            )
+        ),
+
+        "average_strategy_alpha": (
+            _percentage_average(
+                strategy_alphas
+            )
+        ),
+
+        "cumulative_strategy_return": (
+            cumulative_strategy_return
+        ),
+
+        "max_drawdown": (
+            max_drawdown
+        ),
+
+        "sharpe_ratio": (
+            sharpe_ratio
         ),
 
         "confusion_matrix": (
@@ -989,8 +1065,7 @@ def _build_viability_stats(
                 label,
                 minimum,
                 maximum,
-            )
-            in confidence_buckets
+            ) in confidence_buckets
         ],
     }
 
@@ -1038,6 +1113,36 @@ def _build_viability_group(
         if prediction.alpha is not None
     ]
 
+    short_returns = [
+        prediction.short_return
+        for prediction in predictions
+        if prediction.short_return is not None
+    ]
+
+    strategy_returns = [
+        strategy_return
+        for prediction in predictions
+        if (
+            strategy_return := getattr(
+                prediction,
+                "strategy_return",
+                None,
+            )
+        ) is not None
+    ]
+
+    strategy_alphas = [
+        strategy_alpha
+        for prediction in predictions
+        if (
+            strategy_alpha := getattr(
+                prediction,
+                "strategy_alpha",
+                None,
+            )
+        ) is not None
+    ]
+
     beating_spy = sum(
         1
         for alpha in alphas
@@ -1063,12 +1168,6 @@ def _build_viability_group(
             prediction
         )
     )
-
-    short_returns = [
-        prediction.short_return
-        for prediction in predictions
-        if prediction.short_return is not None
-    ]
 
     return {
         "group": label,
@@ -1164,6 +1263,36 @@ def _build_viability_group(
         "average_short_return": (
             _percentage_average(
                 short_returns
+            )
+        ),
+
+        "average_strategy_return": (
+            _percentage_average(
+                strategy_returns
+            )
+        ),
+
+        "average_strategy_alpha": (
+            _percentage_average(
+                strategy_alphas
+            )
+        ),
+
+        "cumulative_strategy_return": (
+            calculate_cumulative_return(
+                strategy_returns
+            )
+        ),
+
+        "max_drawdown": (
+            calculate_max_drawdown(
+                strategy_returns
+            )
+        ),
+
+        "sharpe_ratio": (
+            calculate_sharpe_ratio(
+                strategy_returns
             )
         ),
     }
@@ -1535,3 +1664,97 @@ def get_sample_maturity(
         return "indicative"
 
     return "reliable"
+
+def calculate_cumulative_return(
+    returns: list[float],
+) -> float:
+    if not returns:
+        return 0.0
+
+    portfolio_value = 1.0
+
+    for strategy_return in returns:
+        portfolio_value *= (
+            1.0 + strategy_return
+        )
+
+    return round(
+        (portfolio_value - 1.0) * 100,
+        2,
+    )
+
+def calculate_max_drawdown(
+    returns: list[float],
+) -> float:
+    if not returns:
+        return 0.0
+
+    portfolio_value = 1.0
+    peak_value = 1.0
+    max_drawdown = 0.0
+
+    for strategy_return in returns:
+        portfolio_value *= (
+            1.0 + strategy_return
+        )
+
+        peak_value = max(
+            peak_value,
+            portfolio_value,
+        )
+
+        drawdown = (
+            portfolio_value
+            / peak_value
+            - 1.0
+        )
+
+        max_drawdown = min(
+            max_drawdown,
+            drawdown,
+        )
+
+    return round(
+        max_drawdown * 100,
+        2,
+    )
+
+
+def calculate_sharpe_ratio(
+    returns: list[float],
+) -> float | None:
+    if len(returns) < 2:
+        return None
+
+    mean_return = (
+        sum(returns)
+        / len(returns)
+    )
+
+    variance = (
+        sum(
+            (
+                strategy_return
+                - mean_return
+            ) ** 2
+            for strategy_return in returns
+        )
+        / (len(returns) - 1)
+    )
+
+    standard_deviation = math.sqrt(
+        variance
+    )
+
+    if math.isclose(
+        standard_deviation,
+        0.0,
+        abs_tol=1e-12,
+    ):
+        return None
+
+    return round(
+        mean_return
+        / standard_deviation,
+        4,
+    )

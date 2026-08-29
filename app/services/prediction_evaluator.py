@@ -195,6 +195,20 @@ def evaluate_pending_predictions() -> dict:
                 - spy_return
             )
 
+            strategy_return = (
+                calculate_strategy_return(
+                    predicted_direction=(
+                        prediction.predicted_direction
+                    ),
+                    stock_return=stock_return,
+                )
+            )
+
+            strategy_alpha = (
+                strategy_return
+                - spy_return
+            )
+
             # Actual stock direction.
             actual_direction = (
                 get_actual_direction(
@@ -229,7 +243,7 @@ def evaluate_pending_predictions() -> dict:
             #
             # spy_entry_price is deliberately
             # NOT modified here.
-            updated = update_prediction_result(
+            updated = updated = update_prediction_result(
                 prediction_id=prediction.id,
                 price_after_horizon=round(
                     stock_exit_price,
@@ -262,9 +276,16 @@ def evaluate_pending_predictions() -> dict:
                         short_return,
                         6,
                     )
-                    if short_return
-                    is not None
+                    if short_return is not None
                     else None
+                ),
+                strategy_return=round(
+                    strategy_return,
+                    6,
+                ),
+                strategy_alpha=round(
+                    strategy_alpha,
+                    6,
                 ),
                 evaluation_market_date=(
                     exit_date.to_pydatetime()
@@ -638,40 +659,20 @@ def keep_completed_market_sessions(
 
     return df
 
-def test_current_market_session_is_available_after_evaluation_time():
-    df = make_market_df(
-        dates=[
-            "2026-08-26",
-            "2026-08-27",
-        ],
-        closes=[
-            200.0,
-            201.0,
-        ],
+def calculate_strategy_return(
+    predicted_direction: str,
+    stock_return: float,
+) -> float:
+    direction = (
+        predicted_direction
+        .strip()
+        .lower()
     )
 
-    prepared = (
-        prediction_evaluator
-        .prepare_market_dataframe(df)
-    )
+    if "bullish" in direction:
+        return stock_return
 
-    now = datetime(
-        2026,
-        8,
-        27,
-        18,
-        30,
-        tzinfo=ZoneInfo(
-            "America/New_York"
-        ),
-    )
+    if "bearish" in direction:
+        return -stock_return
 
-    result = (
-        prediction_evaluator
-        .keep_completed_market_sessions(
-            prepared,
-            now=now,
-        )
-    )
-
-    assert len(result) == 2
+    return 0.0

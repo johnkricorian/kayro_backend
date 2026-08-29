@@ -136,6 +136,16 @@ class Prediction(Base):
         nullable=True
     )
 
+    strategy_return = Column(
+    Float,
+    nullable=True,
+)
+
+    strategy_alpha = Column(
+        Float,
+        nullable=True,
+    )
+
 class PortfolioPosition(Base):
     __tablename__ = "portfolio_positions"
 
