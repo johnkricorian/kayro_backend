@@ -12,14 +12,25 @@ from app.services.market import fetch_market_data
 
 NEUTRAL_THRESHOLD = 0.02
 
-MARKET_TIMEZONE = ZoneInfo(
-    "America/New_York"
-)
-
+MARKET_TIMEZONE = ZoneInfo("America/New_York")
 EVALUATION_READY_HOUR = 18
+SPY_ENTRY_REQUIRED_FROM = datetime(2026, 8, 30)
 
 def evaluate_pending_predictions() -> dict:
     predictions = get_pending_predictions()
+
+    missing_spy_entry_price = sum(
+        1
+        for prediction in predictions
+        if (
+            prediction.created_at
+            >= SPY_ENTRY_REQUIRED_FROM
+            and (
+                prediction.spy_entry_price is None
+                or prediction.spy_entry_price <= 0
+            )
+        )
+    )
 
     evaluated = 0
     skipped = 0
@@ -27,6 +38,7 @@ def evaluate_pending_predictions() -> dict:
 
     if not predictions:
         return {
+            "missing_spy_entry_price": 0,
             "pending": 0,
             "evaluated": 0,
             "skipped": 0,
@@ -58,6 +70,7 @@ def evaluate_pending_predictions() -> dict:
                 "ticker": "SPY",
                 "error": "SPY market data unavailable",
             }],
+            "missing_spy_entry_price": (missing_spy_entry_price),
         }
 
     for prediction in predictions:
@@ -318,6 +331,7 @@ def evaluate_pending_predictions() -> dict:
         "evaluated": evaluated,
         "skipped": skipped,
         "errors": errors,
+        "missing_spy_entry_price": (missing_spy_entry_price),
     }
 
 
@@ -514,12 +528,26 @@ def is_prediction_correct(
 def get_pending_evaluation_stats() -> dict:
     predictions = get_pending_predictions()
 
+    missing_spy_entry_price = sum(
+        1
+        for prediction in predictions
+        if (
+            prediction.created_at
+            >= SPY_ENTRY_REQUIRED_FROM
+            and (
+                prediction.spy_entry_price is None
+                or prediction.spy_entry_price <= 0
+            )
+        )
+    )
+
     if not predictions:
         return {
             "pending_predictions": 0,
             "not_due_predictions": 0,
             "due_predictions": 0,
             "overdue_predictions": 0,
+            "missing_spy_entry_price": 0,
             "errors": [],
         }
 
@@ -545,6 +573,9 @@ def get_pending_evaluation_stats() -> dict:
             "not_due_predictions": 0,
             "due_predictions": 0,
             "overdue_predictions": 0,
+            "missing_spy_entry_price": (
+                missing_spy_entry_price
+            ),
             "errors": [{
                 "ticker": "SPY",
                 "error": (
@@ -617,6 +648,9 @@ def get_pending_evaluation_stats() -> dict:
         "not_due_predictions": not_due,
         "due_predictions": due,
         "overdue_predictions": overdue,
+        "missing_spy_entry_price": (
+            missing_spy_entry_price
+        ),
         "latest_market_date": (
             latest_market_date
             .date()

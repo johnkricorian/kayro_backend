@@ -92,9 +92,17 @@ def evaluation_health(
         "overdue_predictions"
     ]
 
+    missing_spy_entry_price = stats[
+        "missing_spy_entry_price"
+    ]
+
     health_status = (
         "degraded"
-        if overdue > 0
+        if (
+            overdue > 0
+            or missing_spy_entry_price > 0
+            or bool(stats["errors"])
+        )
         else "ok"
     )
 
@@ -110,6 +118,9 @@ def evaluation_health(
             "due_predictions"
         ],
         "overdue": overdue,
+        "missing_spy_entry_price": (
+            missing_spy_entry_price
+        ),
         "latest_market_date": stats.get(
             "latest_market_date"
         ),
