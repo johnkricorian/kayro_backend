@@ -1801,6 +1801,133 @@ def calculate_position_pnl(
 
     return 0.0
 
+
+def calculate_spy_benchmark(
+    predictions: list[Prediction],
+    initial_capital: float = PORTFOLIO_INITIAL_CAPITAL,
+) -> dict:
+    eligible_predictions = [
+        prediction
+        for prediction in predictions
+        if (
+            getattr(
+                prediction,
+                "created_at",
+                None,
+            ) is not None
+            and getattr(
+                prediction,
+                "evaluation_market_date",
+                None,
+            ) is not None
+            and getattr(
+                prediction,
+                "spy_entry_price",
+                None,
+            ) is not None
+            and getattr(
+                prediction,
+                "spy_exit_price",
+                None,
+            ) is not None
+        )
+    ]
+
+    if not eligible_predictions:
+        return {
+            "spy_start_price": None,
+            "spy_end_price": None,
+            "spy_return": 0.0,
+            "spy_final_equity": round(
+                initial_capital,
+                2,
+            ),
+        }
+
+    first_prediction = min(
+        eligible_predictions,
+        key=lambda prediction: (
+            _as_date(
+                getattr(
+                    prediction,
+                    "created_at",
+                )
+            ),
+            getattr(
+                prediction,
+                "id",
+                0,
+            ) or 0,
+        ),
+    )
+
+    last_prediction = max(
+        eligible_predictions,
+        key=lambda prediction: (
+            _as_date(
+                getattr(
+                    prediction,
+                    "evaluation_market_date",
+                )
+            ),
+            getattr(
+                prediction,
+                "id",
+                0,
+            ) or 0,
+        ),
+    )
+
+    spy_start_price = float(
+        first_prediction.spy_entry_price
+    )
+
+    spy_end_price = float(
+        last_prediction.spy_exit_price
+    )
+
+    if spy_start_price <= 0:
+        return {
+            "spy_start_price": None,
+            "spy_end_price": None,
+            "spy_return": 0.0,
+            "spy_final_equity": round(
+                initial_capital,
+                2,
+            ),
+        }
+
+    spy_return = (
+        spy_end_price
+        / spy_start_price
+        - 1.0
+    )
+
+    spy_final_equity = (
+        initial_capital
+        * (1.0 + spy_return)
+    )
+
+    return {
+        "spy_start_price": round(
+            spy_start_price,
+            2,
+        ),
+        "spy_end_price": round(
+            spy_end_price,
+            2,
+        ),
+        "spy_return": round(
+            spy_return * 100,
+            2,
+        ),
+        "spy_final_equity": round(
+            spy_final_equity,
+            2,
+        ),
+    }
+
+
 def build_theoretical_portfolio(
     predictions: list[Prediction],
     initial_capital: float = PORTFOLIO_INITIAL_CAPITAL,
@@ -1820,6 +1947,16 @@ def build_theoretical_portfolio(
             "flat_positions": 0,
             "win_rate": 0.0,
             "max_drawdown": 0.0,
+            "benchmark": {
+                "spy_start_price": None,
+                "spy_end_price": None,
+                "spy_return": 0.0,
+                "spy_final_equity": round(
+                    initial_capital,
+                    2,
+                ),
+                "portfolio_alpha": 0.0,
+            },
         }
 
     eligible_predictions = [
@@ -1879,6 +2016,16 @@ def build_theoretical_portfolio(
             "flat_positions": 0,
             "win_rate": 0.0,
             "max_drawdown": 0.0,
+            "benchmark": {
+                "spy_start_price": None,
+                "spy_end_price": None,
+                "spy_return": 0.0,
+                "spy_final_equity": round(
+                    initial_capital,
+                    2,
+                ),
+                "portfolio_alpha": 0.0,
+            },
         }
 
     cash = initial_capital
@@ -1912,19 +2059,22 @@ def build_theoretical_portfolio(
             prediction
         )
 
-        event_dates = {
-            _as_date(
-                getattr(
-                    prediction,
-                    "created_at",
-                )
+    event_dates = {
+        _as_date(
+            getattr(
+                prediction,
+                "created_at",
             )
-            for prediction in eligible_predictions
-        }
+        )
+        for prediction in eligible_predictions
+    }
 
     event_dates.update(
         _as_date(
-            prediction.evaluation_market_date
+            getattr(
+                prediction,
+                "evaluation_market_date",
+            )
         )
         for prediction in eligible_predictions
     )
@@ -1935,7 +2085,10 @@ def build_theoretical_portfolio(
         positions_to_close = [
             position
             for position in open_positions
-            if position["exit_date"] <= current_date
+            if (
+                position["exit_date"]
+                <= current_date
+            )
         ]
 
         for position in positions_to_close:
@@ -2027,7 +2180,10 @@ def build_theoretical_portfolio(
                 ),
                 "entry_date": current_date,
                 "exit_date": _as_date(
-                    prediction.evaluation_market_date
+                    getattr(
+                        prediction,
+                        "evaluation_market_date",
+                    )
                 ),
                 "pnl": pnl,
             })
@@ -2061,53 +2217,21 @@ def build_theoretical_portfolio(
         else 0.0
     )
 
-    return {
-        "initial_capital": round(
-            initial_capital,
-            2,
-        ),
-        "final_equity": round(
-            final_equity,
-            2,
-        ),
-        "realized_pnl": round(
-            realized_pnl,
-            2,
-        ),
-        "total_return": round(
-            total_return,
-            2,
-        ),
-        "positions_taken": positions_taken,
-        "positions_skipped": positions_skipped,
-        "winning_positions": winning_positions,
-        "losing_positions": losing_positions,
-        "flat_positions": flat_positions,
-        "win_rate": round(
-            win_rate,
-            2,
-        ),
-        "max_drawdown": round(
-            max_drawdown * 100,
-            2,
-        ),
-    }
-
-    total_return = (
-        (
-            final_equity
-            / initial_capital
-            - 1.0
-        )
-        * 100
+    benchmark = calculate_spy_benchmark(
+        eligible_predictions,
+        initial_capital=initial_capital,
     )
 
-    win_rate = (
-        winning_positions
-        / positions_taken
-        * 100
-        if positions_taken > 0
-        else 0.0
+    portfolio_alpha = (
+        total_return
+        - benchmark["spy_return"]
+    )
+
+    benchmark[
+        "portfolio_alpha"
+    ] = round(
+        portfolio_alpha,
+        2,
     )
 
     return {
@@ -2140,6 +2264,7 @@ def build_theoretical_portfolio(
             max_drawdown * 100,
             2,
         ),
+        "benchmark": benchmark,
     }
 
 
