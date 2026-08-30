@@ -243,7 +243,7 @@ def evaluate_pending_predictions() -> dict:
             #
             # spy_entry_price is deliberately
             # NOT modified here.
-            updated = updated = update_prediction_result(
+            updated = update_prediction_result(
                 prediction_id=prediction.id,
                 price_after_horizon=round(
                     stock_exit_price,

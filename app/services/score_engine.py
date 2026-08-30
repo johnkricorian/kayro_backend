@@ -64,6 +64,15 @@ def build_stock_score(
         market_context["latest_close"]
     )
 
+        # Capture SPY at prediction time.
+    spy_df = fetch_market_data(
+        "SPY"
+    )
+
+    spy_entry_price = float(
+        spy_df["Close"].iloc[-1]
+    )
+
     # TARGET PRICE
     prediction["target"] = compute_target_price(
         latest_close=latest_close,
@@ -146,10 +155,15 @@ def build_stock_score(
         forecast_horizon=forecast_horizon,
         predicted_direction=prediction["direction"],
         probability_up=prediction["probability_up"],
-        confidence=prediction["confidence"],
-        kayro_score=kayro_score,
+        direction_confidence=prediction["confidence"],
+        qeyro_score=kayro_score,
         recommendation=recommendation,
+        target_price=prediction["target"],
         price_at_prediction=latest_close,
+        spy_entry_price=spy_entry_price,
+        technical_score=technical_score,
+        news_score=finbert_score,
+        market_score=market_score,
     )
 
     score_cache.set(
