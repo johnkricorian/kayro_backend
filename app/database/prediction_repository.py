@@ -8,6 +8,9 @@ from sqlalchemy.orm import Session
 from app.database.database import SessionLocal
 from app.database.models import Prediction
 
+PORTFOLIO_INITIAL_CAPITAL = 10_000.0
+PORTFOLIO_POSITION_SIZE = 1_000.0
+PORTFOLIO_MAX_OPEN_POSITIONS = 10
 
 def save_prediction(
     ticker: str,
@@ -774,6 +777,11 @@ def _build_viability_stats(
             "cumulative_strategy_return": 0.0,
             "max_drawdown": 0.0,
             "sharpe_ratio": None,
+
+            "theoretical_portfolio": (
+                build_theoretical_portfolio([])
+            ),
+
             "confusion_matrix": (
                 _empty_confusion_matrix()
             ),
@@ -910,6 +918,12 @@ def _build_viability_stats(
         ("80+", 80, None),
     ]
 
+    theoretical_portfolio = (
+        build_theoretical_portfolio(
+            predictions
+        )
+    )
+
     return {
         "evaluated_predictions": total,
 
@@ -1025,6 +1039,10 @@ def _build_viability_stats(
 
         "sharpe_ratio": (
             sharpe_ratio
+        ),
+
+        "theoretical_portfolio": (
+            theoretical_portfolio
         ),
 
         "confusion_matrix": (
@@ -1683,6 +1701,7 @@ def calculate_cumulative_return(
         2,
     )
 
+
 def calculate_max_drawdown(
     returns: list[float],
 ) -> float:
@@ -1758,3 +1777,379 @@ def calculate_sharpe_ratio(
         / standard_deviation,
         4,
     )
+
+def calculate_position_pnl(
+    predicted_direction: str,
+    stock_return: float,
+    position_size: float = PORTFOLIO_POSITION_SIZE,
+) -> float:
+    direction = _normalize_direction(
+        predicted_direction
+    )
+
+    if direction == "Bullish":
+        return round(
+            position_size * stock_return,
+            2,
+        )
+
+    if direction == "Bearish":
+        return round(
+            position_size * -stock_return,
+            2,
+        )
+
+    return 0.0
+
+def build_theoretical_portfolio(
+    predictions: list[Prediction],
+    initial_capital: float = PORTFOLIO_INITIAL_CAPITAL,
+    position_size: float = PORTFOLIO_POSITION_SIZE,
+    max_open_positions: int = PORTFOLIO_MAX_OPEN_POSITIONS,
+) -> dict:
+    if not predictions:
+        return {
+            "initial_capital": initial_capital,
+            "final_equity": initial_capital,
+            "realized_pnl": 0.0,
+            "total_return": 0.0,
+            "positions_taken": 0,
+            "positions_skipped": 0,
+            "winning_positions": 0,
+            "losing_positions": 0,
+            "flat_positions": 0,
+            "win_rate": 0.0,
+            "max_drawdown": 0.0,
+        }
+
+    eligible_predictions = [
+        prediction
+        for prediction in predictions
+        if (
+            _normalize_direction(
+                getattr(
+                    prediction,
+                    "predicted_direction",
+                    None,
+                )
+            )
+            in {"Bullish", "Bearish"}
+            and getattr(
+                prediction,
+                "stock_return",
+                None,
+            ) is not None
+            and getattr(
+                prediction,
+                "created_at",
+                None,
+            ) is not None
+            and getattr(
+                prediction,
+                "evaluation_market_date",
+                None,
+            ) is not None
+        )
+    ]
+
+    eligible_predictions.sort(
+        key=lambda prediction: (
+            getattr(
+                prediction,
+                "created_at",
+            ),
+            getattr(
+                prediction,
+                "id",
+                0,
+            ) or 0,
+        )
+    )
+
+    if not eligible_predictions:
+        return {
+            "initial_capital": initial_capital,
+            "final_equity": initial_capital,
+            "realized_pnl": 0.0,
+            "total_return": 0.0,
+            "positions_taken": 0,
+            "positions_skipped": 0,
+            "winning_positions": 0,
+            "losing_positions": 0,
+            "flat_positions": 0,
+            "win_rate": 0.0,
+            "max_drawdown": 0.0,
+        }
+
+    cash = initial_capital
+    realized_pnl = 0.0
+
+    positions_taken = 0
+    positions_skipped = 0
+    winning_positions = 0
+    losing_positions = 0
+    flat_positions = 0
+
+    open_positions: list[dict] = []
+
+    peak_equity = initial_capital
+    max_drawdown = 0.0
+
+    predictions_by_date: dict = {}
+
+    for prediction in eligible_predictions:
+        entry_date = _as_date(
+            getattr(
+                prediction,
+                "created_at",
+            )
+        )
+
+        predictions_by_date.setdefault(
+            entry_date,
+            [],
+        ).append(
+            prediction
+        )
+
+        event_dates = {
+            _as_date(
+                getattr(
+                    prediction,
+                    "created_at",
+                )
+            )
+            for prediction in eligible_predictions
+        }
+
+    event_dates.update(
+        _as_date(
+            prediction.evaluation_market_date
+        )
+        for prediction in eligible_predictions
+    )
+
+    for current_date in sorted(
+        event_dates
+    ):
+        positions_to_close = [
+            position
+            for position in open_positions
+            if position["exit_date"] <= current_date
+        ]
+
+        for position in positions_to_close:
+            pnl = position["pnl"]
+
+            cash += (
+                position_size
+                + pnl
+            )
+
+            realized_pnl += pnl
+
+            if pnl > 0:
+                winning_positions += 1
+            elif pnl < 0:
+                losing_positions += 1
+            else:
+                flat_positions += 1
+
+            open_positions.remove(
+                position
+            )
+
+            realized_equity = (
+                cash
+                + (
+                    len(open_positions)
+                    * position_size
+                )
+            )
+
+            peak_equity = max(
+                peak_equity,
+                realized_equity,
+            )
+
+            drawdown = (
+                realized_equity
+                / peak_equity
+                - 1.0
+            )
+
+            max_drawdown = min(
+                max_drawdown,
+                drawdown,
+            )
+
+        daily_predictions = (
+            predictions_by_date.get(
+                current_date,
+                [],
+            )
+        )
+
+        for prediction in daily_predictions:
+            if (
+                len(open_positions)
+                >= max_open_positions
+            ):
+                positions_skipped += 1
+                continue
+
+            if cash < position_size:
+                positions_skipped += 1
+                continue
+
+            pnl = calculate_position_pnl(
+                predicted_direction=(
+                    prediction.predicted_direction
+                ),
+                stock_return=(
+                    prediction.stock_return
+                ),
+                position_size=position_size,
+            )
+
+            cash -= position_size
+
+            open_positions.append({
+                "prediction_id": getattr(
+                    prediction,
+                    "id",
+                    None,
+                ),
+                "ticker": getattr(
+                    prediction,
+                    "ticker",
+                    None,
+                ),
+                "entry_date": current_date,
+                "exit_date": _as_date(
+                    prediction.evaluation_market_date
+                ),
+                "pnl": pnl,
+            })
+
+            positions_taken += 1
+
+    assert not open_positions
+
+    final_equity = cash
+
+    total_return = (
+        (
+            final_equity
+            / initial_capital
+            - 1.0
+        )
+        * 100
+    )
+
+    closed_positions = (
+        winning_positions
+        + losing_positions
+        + flat_positions
+    )
+
+    win_rate = (
+        winning_positions
+        / closed_positions
+        * 100
+        if closed_positions > 0
+        else 0.0
+    )
+
+    return {
+        "initial_capital": round(
+            initial_capital,
+            2,
+        ),
+        "final_equity": round(
+            final_equity,
+            2,
+        ),
+        "realized_pnl": round(
+            realized_pnl,
+            2,
+        ),
+        "total_return": round(
+            total_return,
+            2,
+        ),
+        "positions_taken": positions_taken,
+        "positions_skipped": positions_skipped,
+        "winning_positions": winning_positions,
+        "losing_positions": losing_positions,
+        "flat_positions": flat_positions,
+        "win_rate": round(
+            win_rate,
+            2,
+        ),
+        "max_drawdown": round(
+            max_drawdown * 100,
+            2,
+        ),
+    }
+
+    total_return = (
+        (
+            final_equity
+            / initial_capital
+            - 1.0
+        )
+        * 100
+    )
+
+    win_rate = (
+        winning_positions
+        / positions_taken
+        * 100
+        if positions_taken > 0
+        else 0.0
+    )
+
+    return {
+        "initial_capital": round(
+            initial_capital,
+            2,
+        ),
+        "final_equity": round(
+            final_equity,
+            2,
+        ),
+        "realized_pnl": round(
+            realized_pnl,
+            2,
+        ),
+        "total_return": round(
+            total_return,
+            2,
+        ),
+        "positions_taken": positions_taken,
+        "positions_skipped": positions_skipped,
+        "winning_positions": winning_positions,
+        "losing_positions": losing_positions,
+        "flat_positions": flat_positions,
+        "win_rate": round(
+            win_rate,
+            2,
+        ),
+        "max_drawdown": round(
+            max_drawdown * 100,
+            2,
+        ),
+    }
+
+
+def _as_date(
+    value: datetime,
+):
+    if isinstance(
+        value,
+        datetime,
+    ):
+        return value.date()
+
+    return value
