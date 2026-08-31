@@ -11,6 +11,7 @@ from app.database.models import Prediction
 PORTFOLIO_INITIAL_CAPITAL = 10_000.0
 PORTFOLIO_POSITION_SIZE = 1_000.0
 PORTFOLIO_MAX_OPEN_POSITIONS = 10
+PROSPECTIVE_VALIDATION_START = datetime(2026, 8, 31,)
 
 def save_prediction(
     ticker: str,
@@ -777,7 +778,26 @@ def _build_viability_stats(
             "cumulative_strategy_return": 0.0,
             "max_drawdown": 0.0,
             "sharpe_ratio": None,
-
+            "prospective_validation": {
+                "start_date": (
+                    PROSPECTIVE_VALIDATION_START
+                    .date()
+                    .isoformat()
+                ),
+                "evaluated_predictions": 0,
+                "directional_predictions": 0,
+                "sample_maturity": "insufficient",
+                "direction_accuracy": 0.0,
+                "confidence_interval_95": None,
+                "progress": {
+                    "target_30": 0.0,
+                    "target_100": 0.0,
+                    "target_300": 0.0,
+                },
+                "portfolio": (
+                    build_theoretical_portfolio([])
+                ),
+            },
             "theoretical_portfolio": (
                 build_theoretical_portfolio([])
             ),
@@ -918,6 +938,54 @@ def _build_viability_stats(
         ("80+", 80, None),
     ]
 
+    prospective_predictions = [
+        prediction
+        for prediction in predictions
+        if (
+            (
+                created_at := getattr(
+                    prediction,
+                    "created_at",
+                    None,
+                )
+            )
+            is not None
+            and created_at
+            >= PROSPECTIVE_VALIDATION_START
+        )
+    ]
+
+    prospective_directional = [
+        prediction
+        for prediction in prospective_predictions
+        if (
+            _normalize_direction(
+                prediction.predicted_direction
+            )
+            in {"Bullish", "Bearish"}
+            and _normalize_direction(
+                prediction.actual_direction
+            )
+            in {"Bullish", "Bearish"}
+        )
+    ]
+
+    prospective_metrics = (
+        _compute_direction_metrics(
+            prospective_directional
+        )
+    )
+
+    prospective_portfolio = (
+        build_theoretical_portfolio(
+            prospective_predictions
+        )
+    )
+
+    prospective_sample_size = len(
+        prospective_directional
+    )
+
     theoretical_portfolio = (
         build_theoretical_portfolio(
             predictions
@@ -1040,6 +1108,69 @@ def _build_viability_stats(
         "sharpe_ratio": (
             sharpe_ratio
         ),
+
+
+        "prospective_validation": {
+            "start_date": (
+                PROSPECTIVE_VALIDATION_START
+                .date()
+                .isoformat()
+            ),
+
+            "evaluated_predictions": len(
+                prospective_predictions
+            ),
+
+            "directional_predictions": (
+                prospective_sample_size
+            ),
+
+            "sample_maturity": (
+                prospective_metrics[
+                    "sample_maturity"
+                ]
+            ),
+
+            "direction_accuracy": (
+                prospective_metrics[
+                    "direction_accuracy"
+                ]
+            ),
+
+            "confidence_interval_95": (
+                prospective_metrics[
+                    "confidence_interval_95"
+                ]
+            ),
+
+            "progress": {
+                "target_30": round(
+                    min(
+                        prospective_sample_size / 30 * 100,
+                        100,
+                    ),
+                    2,
+                ),
+                "target_100": round(
+                    min(
+                        prospective_sample_size / 100 * 100,
+                        100,
+                    ),
+                    2,
+                ),
+                "target_300": round(
+                    min(
+                        prospective_sample_size / 300 * 100,
+                        100,
+                    ),
+                    2,
+                ),
+            },
+
+            "portfolio": (
+                prospective_portfolio
+            ),
+        },
 
         "theoretical_portfolio": (
             theoretical_portfolio
