@@ -10,8 +10,16 @@ DATA_FILE = (
 
 
 def load_sectors() -> dict:
-    with DATA_FILE.open("r", encoding="utf-8") as file:
-        return json.load(file)
+    with DATA_FILE.open(
+        "r",
+        encoding="utf-8",
+    ) as file:
+        sectors = json.load(file)
+
+    return {
+        key.lower(): value
+        for key, value in sectors.items()
+    }
 
 
 def get_available_sectors() -> list[str]:
