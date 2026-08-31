@@ -48,6 +48,113 @@ def get_evaluation_stats() -> dict:
     }
 
 
+@router.get("/performance")
+def get_performance() -> dict:
+    viability = get_viability_stats()
+
+    prospective = viability[
+        "prospective_validation"
+    ]
+
+    portfolio = prospective[
+        "portfolio"
+    ]
+
+    benchmark = portfolio[
+        "benchmark"
+    ]
+
+    return {
+        "performance": {
+            "validation_start_date": (
+                prospective[
+                    "start_date"
+                ]
+            ),
+            "status": (
+                prospective[
+                    "sample_maturity"
+                ]
+            ),
+            "directional_evaluated": (
+                prospective[
+                    "directional_predictions"
+                ]
+            ),
+            "accuracy": (
+                prospective[
+                    "direction_accuracy"
+                ]
+            ),
+            "confidence_interval_95": (
+                prospective[
+                    "confidence_interval_95"
+                ]
+            ),
+            "progress": (
+                prospective[
+                    "progress"
+                ]
+            ),
+            "portfolio": {
+                "initial_capital": (
+                    portfolio[
+                        "initial_capital"
+                    ]
+                ),
+                "current_capital": (
+                    portfolio[
+                        "final_equity"
+                    ]
+                ),
+                "return": (
+                    portfolio[
+                        "total_return"
+                    ]
+                ),
+                "realized_pnl": (
+                    portfolio[
+                        "realized_pnl"
+                    ]
+                ),
+                "positions_taken": (
+                    portfolio[
+                        "positions_taken"
+                    ]
+                ),
+                "win_rate": (
+                    portfolio[
+                        "win_rate"
+                    ]
+                ),
+                "max_drawdown": (
+                    portfolio[
+                        "max_drawdown"
+                    ]
+                ),
+            },
+            "benchmark": {
+                "name": "S&P 500",
+                "return": (
+                    benchmark[
+                        "spy_return"
+                    ]
+                ),
+                "capital": (
+                    benchmark[
+                        "spy_final_equity"
+                    ]
+                ),
+                "excess_return_vs_spy": (
+                    benchmark[
+                        "portfolio_alpha"
+                    ]
+                ),
+            },
+        }
+    }
+
+
 @router.get("/ticker/{ticker}")
 def get_evaluation_ticker(
     ticker: str,
