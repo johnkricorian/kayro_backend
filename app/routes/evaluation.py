@@ -76,6 +76,23 @@ def get_performance() -> dict:
                     "sample_maturity"
                 ]
             ),
+            "prospective": {
+                "generated": (
+                    prospective[
+                        "generated_predictions"
+                    ]
+                ),
+                "evaluated": (
+                    prospective[
+                        "evaluated_predictions"
+                    ]
+                ),
+                "pending": (
+                    prospective[
+                        "pending_predictions"
+                    ]
+                ),
+            },
             "directional_evaluated": (
                 prospective[
                     "directional_predictions"

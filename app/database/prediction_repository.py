@@ -11,7 +11,11 @@ from app.database.models import Prediction
 PORTFOLIO_INITIAL_CAPITAL = 10_000.0
 PORTFOLIO_POSITION_SIZE = 1_000.0
 PORTFOLIO_MAX_OPEN_POSITIONS = 10
-PROSPECTIVE_VALIDATION_START = datetime(2026, 8, 31,)
+PROSPECTIVE_VALIDATION_START = datetime(
+    2026,
+    8,
+    31,
+)
 
 def save_prediction(
     ticker: str,
@@ -739,8 +743,18 @@ def get_viability_stats() -> dict:
             .all()
         )
 
+        prospective_generated = (
+            db.query(Prediction)
+            .filter(
+                Prediction.created_at
+                >= PROSPECTIVE_VALIDATION_START
+            )
+            .count()
+        )
+
         return _build_viability_stats(
-            predictions
+            predictions,
+            prospective_generated=prospective_generated,
         )
 
     finally:
@@ -749,6 +763,7 @@ def get_viability_stats() -> dict:
 
 def _build_viability_stats(
     predictions: list[Prediction],
+    prospective_generated: int = 0,
 ) -> dict:
     total = len(predictions)
 
@@ -783,6 +798,12 @@ def _build_viability_stats(
                     PROSPECTIVE_VALIDATION_START
                     .date()
                     .isoformat()
+                ),
+                "generated_predictions": (
+                    prospective_generated
+                ),
+                "pending_predictions": (
+                    prospective_generated
                 ),
                 "evaluated_predictions": 0,
                 "directional_predictions": 0,
@@ -986,6 +1007,16 @@ def _build_viability_stats(
         prospective_directional
     )
 
+    prospective_evaluated = len(
+        prospective_predictions
+    )
+
+    prospective_pending = max(
+        prospective_generated
+        - prospective_evaluated,
+        0,
+    )
+
     theoretical_portfolio = (
         build_theoretical_portfolio(
             predictions
@@ -1117,8 +1148,16 @@ def _build_viability_stats(
                 .isoformat()
             ),
 
-            "evaluated_predictions": len(
-                prospective_predictions
+            "generated_predictions": (
+                prospective_generated
+            ),
+
+            "pending_predictions": (
+                prospective_pending
+            ),
+
+            "evaluated_predictions": (
+                prospective_evaluated
             ),
 
             "directional_predictions": (
