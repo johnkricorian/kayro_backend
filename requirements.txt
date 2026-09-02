@@ -216,3 +216,4 @@ xlsxwriter==3.2.9
 yfinance==1.4.1
 apscheduler
 psycopg[binary]==3.2.9
+exchange-calendars==4.13.2

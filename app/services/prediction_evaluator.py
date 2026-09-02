@@ -2,11 +2,14 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import pandas as pd
+import exchange_calendars as xcals
 
 from app.database.prediction_repository import (
+    PROSPECTIVE_VALIDATION_START,
     get_pending_predictions,
     update_prediction_result,
 )
+
 from app.services.market import fetch_market_data
 
 
@@ -447,6 +450,114 @@ def get_evaluation_dates(
     )
 
 
+def get_scheduled_evaluation_date(
+    created_at: datetime,
+    forecast_horizon: int,
+) -> pd.Timestamp | None:
+    if forecast_horizon <= 0:
+        return None
+
+    calendar = xcals.get_calendar("XNYS")
+
+    prediction_date = (
+        pd.Timestamp(created_at)
+        .tz_localize(None)
+        .normalize()
+    )
+
+    entry_session = calendar.date_to_session(
+        prediction_date,
+        direction="previous",
+    )
+
+    future_sessions = calendar.sessions_in_range(
+        entry_session + pd.Timedelta(days=1),
+        entry_session + pd.Timedelta(days=90),
+    )
+
+    if len(future_sessions) < forecast_horizon:
+        return None
+
+    return (
+        future_sessions[
+            forecast_horizon - 1
+        ]
+        .tz_localize(None)
+        .normalize()
+    )
+
+
+def get_next_prospective_evaluation(
+    predictions,
+) -> dict | None:
+    prospective_predictions = [
+        prediction
+        for prediction in predictions
+        if (
+            prediction.created_at
+            >= PROSPECTIVE_VALIDATION_START
+        )
+    ]
+
+    if not prospective_predictions:
+        return None
+
+    scheduled = []
+
+    for prediction in prospective_predictions:
+        evaluation_date = (
+            get_scheduled_evaluation_date(
+                created_at=prediction.created_at,
+                forecast_horizon=(
+                    prediction.forecast_horizon
+                ),
+            )
+        )
+
+        if evaluation_date is None:
+            continue
+
+        scheduled.append(
+            (
+                prediction,
+                evaluation_date,
+            )
+        )
+
+    if not scheduled:
+        return None
+
+    next_date = min(
+        evaluation_date
+        for _, evaluation_date
+        in scheduled
+    )
+
+    next_predictions = [
+        prediction
+        for prediction, evaluation_date
+        in scheduled
+        if evaluation_date == next_date
+    ]
+
+    directional = sum(
+        1
+        for prediction in next_predictions
+        if (
+            "bullish"
+            in prediction.predicted_direction.lower()
+            or "bearish"
+            in prediction.predicted_direction.lower()
+        )
+    )
+
+    return {
+        "date": next_date.date().isoformat(),
+        "predictions": len(next_predictions),
+        "directional": directional,
+    }
+
+
 def get_close_on_date(
     df: pd.DataFrame,
     date: pd.Timestamp,
@@ -527,6 +638,12 @@ def is_prediction_correct(
 
 def get_pending_evaluation_stats() -> dict:
     predictions = get_pending_predictions()
+
+    next_evaluation = (
+        get_next_prospective_evaluation(
+            predictions
+        )
+    )
 
     missing_spy_entry_price = sum(
         1
@@ -645,6 +762,7 @@ def get_pending_evaluation_stats() -> dict:
         "pending_predictions": len(
             predictions
         ),
+        "next_evaluation": next_evaluation,
         "not_due_predictions": not_due,
         "due_predictions": due,
         "overdue_predictions": overdue,

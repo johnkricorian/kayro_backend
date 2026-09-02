@@ -50,6 +50,9 @@ def get_evaluation_stats() -> dict:
 
 @router.get("/performance")
 def get_performance() -> dict:
+    pending_stats = (
+        get_pending_evaluation_stats()
+    )
     viability = get_viability_stats()
 
     prospective = viability[
@@ -91,6 +94,11 @@ def get_performance() -> dict:
                     prospective[
                         "pending_predictions"
                     ]
+                ),
+                "next_evaluation": (
+                    pending_stats.get(
+                        "next_evaluation"
+                    )
                 ),
             },
             "directional_evaluated": (

@@ -727,6 +727,67 @@ def get_today_prediction(
         db.close()
 
 
+def get_next_prospective_evaluation(
+    predictions: list[Prediction],
+) -> dict | None:
+    pending_predictions = [
+        prediction
+        for prediction in predictions
+        if (
+            prediction.created_at
+            >= PROSPECTIVE_VALIDATION_START
+            and prediction.prediction_correct is None
+        )
+    ]
+
+    evaluation_candidates = [
+        prediction
+        for prediction in pending_predictions
+        if (
+            getattr(
+                prediction,
+                "evaluation_market_date",
+                None,
+            )
+            is not None
+        )
+    ]
+
+    if not evaluation_candidates:
+        return None
+
+    next_date = min(
+        prediction.evaluation_market_date
+        for prediction in evaluation_candidates
+    )
+
+    same_date = [
+        prediction
+        for prediction in evaluation_candidates
+        if (
+            prediction.evaluation_market_date
+            == next_date
+        )
+    ]
+
+    directional = sum(
+        1
+        for prediction in same_date
+        if (
+            "bullish"
+            in prediction.predicted_direction.lower()
+            or "bearish"
+            in prediction.predicted_direction.lower()
+        )
+    )
+
+    return {
+        "date": next_date.date().isoformat(),
+        "predictions": len(same_date),
+        "directional": directional,
+    }
+
+
 def get_viability_stats() -> dict:
     db: Session = SessionLocal()
 
