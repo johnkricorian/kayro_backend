@@ -6,6 +6,7 @@ from app.services import score_cache
 from app.database.prediction_repository import save_prediction
 from app.core.logger import create_logger
 from app.services.company_logo import build_company_logo_url
+from app.services.market_score import compute_market_score
 
 logger = create_logger(__name__)
 
@@ -110,17 +111,14 @@ def build_stock_score(
         )
     )
 
-    market_score = compute_market_score(
-        market_context
+    market = compute_market_score()
+
+    market_score = float(
+        market["score"]
     )
 
-    # FINAL KAYRO SCORE
     kayro_score = compute_kayro_score(
-        technical_score=technical_score,
-        probability_up=probability_up,
-        finbert_score=finbert_score,
-        market_score=market_score,
-        signals=signals,
+        signals
     )
 
     recommendation = recommendation_label(
@@ -134,7 +132,7 @@ def build_stock_score(
         ),
         "kayro_score": kayro_score,
         "recommendation": recommendation,
-        "confidence": prediction["confidence"],
+        "confidence": prediction["direction_confidence"],
         "signals": signals,
         "sentiment": sentiment,
         "technical": technical,
@@ -155,7 +153,7 @@ def build_stock_score(
         forecast_horizon=forecast_horizon,
         predicted_direction=prediction["direction"],
         probability_up=prediction["probability_up"],
-        direction_confidence=prediction["confidence"],
+        direction_confidence=prediction["direction_confidence"],
         qeyro_score=kayro_score,
         recommendation=recommendation,
         target_price=prediction["target"],
@@ -193,7 +191,10 @@ def build_signals(
     momentum_20d = technical.get("momentum_20d", 0)
 
     probability_up = ml["prediction"].get("probability_up", 0)
-    confidence = ml["prediction"].get("confidence", 0)
+    confidence = ml["prediction"].get(
+        "direction_confidence",
+        0,
+    )
     reliability = ml["model"].get("reliability_score", 0)
 
     # News / sentiment

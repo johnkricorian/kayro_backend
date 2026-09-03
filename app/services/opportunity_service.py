@@ -1,5 +1,4 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
 from app.models.opportunity import Opportunity
 from app.services.score_engine import build_stock_score
 from app.services.market import fetch_market_data
@@ -35,11 +34,17 @@ def build_opportunity(
         technical = score["technical"]
         prediction = score["prediction"]
 
-        positive_sentiment = round(sentiment["finbert_score"] * 100)
+        positive_sentiment = round(
+            sentiment["score"] * 100
+        )
+
         technical_percent = OpportunityPresenter.technical_percent(
             technical["technical_score"]
         )
-        news_count = len(sentiment["articles"])
+
+        news_count = len(
+            sentiment["articles"]
+        )
 
         return Opportunity(
             ticker=ticker,
@@ -48,7 +53,7 @@ def build_opportunity(
             kayro_score=score["kayro_score"],
             recommendation=score["recommendation"],
             prediction=prediction["direction"],
-            confidence=prediction["confidence"],
+            confidence=prediction["direction_confidence"],
             price=round(float(latest["Close"]), 2),
             change_percent=round(float(change_percent), 2),
             signals=[
@@ -65,7 +70,9 @@ def build_opportunity(
             ),
             news_count=news_count,
             trend_label=technical["trend"],
-            trend_percent=round(prediction["confidence"]),
+            trend_percent=round(
+                prediction["direction_confidence"]
+            ),
             technical_label=OpportunityPresenter.technical_label(
                 technical_percent
             ),
@@ -82,7 +89,10 @@ def build_opportunity(
                 technical=technical,
                 news_count=news_count
             ),
-            reasons=[signal["description"] for signal in score["signals"][:3]]
+            reasons=[
+                signal["description"]
+                for signal in score["signals"][:3]
+            ]
         )
 
     except Exception as error:

@@ -53,6 +53,7 @@ class OpportunityPresenter:
 
         return signals[0]["title"]
 
+
     @staticmethod
     def ai_explanation(
         prediction: dict,
@@ -64,5 +65,6 @@ class OpportunityPresenter:
             f"over the next {prediction['time_horizon_days']} days. "
             f"The score is supported by a {technical['trend'].lower()} trend, "
             f"{news_count} recent news article(s), "
-            f"and a model confidence of {prediction['confidence']:.1f}%."
+            f"and a model confidence of "
+            f"{prediction['direction_confidence']:.1f}%."
         )
