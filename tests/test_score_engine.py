@@ -4,41 +4,75 @@ from app.services.score_engine import (
     build_signals,
 )
 
-
-def test_compute_kayro_score_positive():
+def test_compute_kayro_score_bullish_positive():
     signals = [
-        {"impact": 20},
-        {"impact": 10},
-        {"impact": -5},
+        {"impact": 20, "category": "technical"},
+        {"impact": 10, "category": "ml"},
+        {"impact": -5, "category": "news"},
     ]
 
-    assert compute_kayro_score(signals) == 75
+    assert compute_kayro_score(
+        signals,
+        direction="Bullish",
+    ) == 75
+
+
+def test_compute_kayro_score_bearish_positive():
+    signals = [
+        {"impact": -20, "category": "technical"},
+        {"impact": -10, "category": "ml"},
+        {"impact": 5, "category": "news"},
+    ]
+
+    assert compute_kayro_score(
+        signals,
+        direction="Bearish",
+    ) == 75
 
 
 def test_compute_kayro_score_clamped_max():
     signals = [
-        {"impact": 80},
-        {"impact": 50},
+        {"impact": 80, "category": "technical"},
+        {"impact": 50, "category": "ml"},
     ]
 
-    assert compute_kayro_score(signals) == 100
+    assert compute_kayro_score(
+        signals,
+        direction="Bullish",
+    ) == 100
 
 
 def test_compute_kayro_score_clamped_min():
     signals = [
-        {"impact": -80},
-        {"impact": -50},
+        {"impact": -80, "category": "technical"},
+        {"impact": -50, "category": "ml"},
     ]
 
-    assert compute_kayro_score(signals) == 0
-
+    assert compute_kayro_score(
+        signals,
+        direction="Bullish",
+    ) == 0
 
 def test_recommendation_label():
-    assert recommendation_label(85) == "Strong Buy"
-    assert recommendation_label(70) == "Buy"
-    assert recommendation_label(55) == "Watch"
-    assert recommendation_label(40) == "Weak"
-    assert recommendation_label(20) == "Avoid"
+    # Bullish
+    assert recommendation_label(85, "Bullish") == "Strong Buy"
+    assert recommendation_label(70, "Bullish") == "Buy"
+    assert recommendation_label(55, "Bullish") == "Watch"
+    assert recommendation_label(20, "Bullish") == "Avoid"
+
+    # Bearish
+    assert recommendation_label(85, "Bearish") == "Strong Sell"
+    assert recommendation_label(70, "Bearish") == "Sell"
+    assert recommendation_label(55, "Bearish") == "Watch"
+    assert recommendation_label(20, "Bearish") == "Avoid"
+
+    # Strong directions
+    assert recommendation_label(85, "Strong Bullish") == "Strong Buy"
+    assert recommendation_label(85, "Strong Bearish") == "Strong Sell"
+
+    # Neutral
+    assert recommendation_label(90, "Neutral") == "Watch"
+    assert recommendation_label(40, "Neutral") == "Watch"
 
 
 def test_build_signals_positive_case():

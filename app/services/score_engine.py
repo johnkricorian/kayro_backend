@@ -118,11 +118,13 @@ def build_stock_score(
     )
 
     kayro_score = compute_kayro_score(
-        signals
+        signals=signals,
+        direction=prediction["direction"],
     )
 
     recommendation = recommendation_label(
-        kayro_score
+        score=kayro_score,
+        direction=prediction["direction"],
     )
 
     result = {
@@ -278,21 +280,64 @@ def signal(
         "direction": "positive" if impact > 0 else "negative" if impact < 0 else "neutral"
     }
 
-def compute_kayro_score(signals: list[dict]) -> int:
-    raw_score = 50 + sum(item["impact"] for item in signals)
+def compute_kayro_score(
+    signals: list[dict],
+    direction: str,
+) -> int:
+    direction = direction.lower()
+
+    directional_impacts = []
+    quality_impacts = []
+
+    for item in signals:
+        impact = item["impact"]
+        category = item["category"]
+
+        if category in {"technical", "ml", "news"}:
+            directional_impacts.append(impact)
+        else:
+            quality_impacts.append(abs(impact))
+
+    directional_score = sum(directional_impacts)
+
+    if direction in {"bearish", "strong bearish"}:
+        directional_score *= -1
+    elif direction not in {"bullish", "strong bullish"}:
+        directional_score = 0
+
+    raw_score = (
+        50
+        + directional_score
+        + sum(quality_impacts)
+    )
 
     return round(clamp(raw_score, 0, 100))
 
-def recommendation_label(score: int) -> str:
-    if score >= 80:
-        return "Strong Buy"
-    if score >= 65:
-        return "Buy"
-    if score >= 50:
-        return "Watch"
-    if score >= 35:
-        return "Weak"
-    return "Avoid"
+def recommendation_label(
+    score: int,
+    direction: str,
+) -> str:
+    direction = direction.lower()
+
+    if direction in {"bullish", "strong bullish"}:
+        if score >= 80:
+            return "Strong Buy"
+        if score >= 65:
+            return "Buy"
+        if score >= 50:
+            return "Watch"
+        return "Avoid"
+
+    if direction in {"bearish", "strong bearish"}:
+        if score >= 80:
+            return "Strong Sell"
+        if score >= 65:
+            return "Sell"
+        if score >= 50:
+            return "Watch"
+        return "Avoid"
+
+    return "Watch"
 
 import pandas as pd
 
