@@ -116,6 +116,21 @@ def get_performance() -> dict:
                     "confidence_interval_95"
                 ]
             ),
+            "accuracy": (
+                prospective[
+                    "direction_accuracy"
+                ]
+            ),
+            "average_strategy_return": (
+                prospective[
+                    "average_strategy_return"
+                ]
+            ),
+            "confidence_interval_95": (
+                prospective[
+                    "confidence_interval_95"
+                ]
+            ),
             "progress": (
                 prospective[
                     "progress"

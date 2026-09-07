@@ -835,6 +835,7 @@ def _build_viability_stats(
             "sample_size": 0,
             "sample_maturity": "insufficient",
             "direction_accuracy": 0.0,
+            "average_strategy_return": 0.0,
             "confidence_interval_95": None,
             "balanced_accuracy": None,
             "bullish_precision": None,
@@ -1072,6 +1073,18 @@ def _build_viability_stats(
         prospective_predictions
     )
 
+    prospective_strategy_returns = [
+        strategy_return
+        for prediction in prospective_predictions
+        if (
+            strategy_return := getattr(
+                prediction,
+                "strategy_return",
+                None,
+            )
+        ) is not None
+    ]
+
     prospective_pending = max(
         prospective_generated
         - prospective_evaluated,
@@ -1177,12 +1190,6 @@ def _build_viability_stats(
             )
         ),
 
-        "average_strategy_return": (
-            _percentage_average(
-                strategy_returns
-            )
-        ),
-
         "average_strategy_alpha": (
             _percentage_average(
                 strategy_alphas
@@ -1201,6 +1208,11 @@ def _build_viability_stats(
             sharpe_ratio
         ),
 
+        "average_strategy_return": (
+            _percentage_average(
+                prospective_strategy_returns
+            )
+        ),
 
         "prospective_validation": {
             "start_date": (
@@ -1235,6 +1247,12 @@ def _build_viability_stats(
                 prospective_metrics[
                     "direction_accuracy"
                 ]
+            ),
+
+            "average_strategy_return": (
+                _percentage_average(
+                    prospective_strategy_returns
+                )
             ),
 
             "confidence_interval_95": (
