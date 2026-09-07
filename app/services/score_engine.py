@@ -211,9 +211,13 @@ def build_signals(
         signals.append(signal("Market News", "Alpha Vantage sentiment is negative", -10, "news"))
 
     if media_buzz >= 0.6:
-        signals.append(signal("Media Buzz", "High media coverage detected", 8, "news"))
+        signals.append(
+            signal("Media Buzz", "High media coverage detected", 8, "quality")
+        )
     elif media_buzz >= 0.3:
-        signals.append(signal("Media Buzz", "Rising media attention", 5, "news"))
+        signals.append(
+            signal("Media Buzz", "Rising media attention", 5, "quality")
+        )
 
     # Technical
     if technical_score > 0.35:
@@ -252,17 +256,42 @@ def build_signals(
         signals.append(signal("Machine Learning", "Model predicts downside", -18, "ml"))
 
     if confidence >= 75:
-        signals.append(signal("Confidence", "High prediction confidence", 10, "ml"))
+        signals.append(
+            signal(
+                "Confidence",
+                "High prediction confidence",
+                10,
+                "quality",
+            )
+        )
     elif confidence < 55:
-        signals.append(signal("Confidence", "Low prediction confidence", -6, "ml"))
+        signals.append(
+            signal(
+                "Confidence",
+                "Low prediction confidence",
+                -6,
+                "quality",
+            )
+        )
 
     if reliability >= 60:
-        signals.append(signal("Reliability", "Model reliability is strong", 10, "ml"))
+        signals.append(
+            signal(
+                "Reliability",
+                "Model reliability is strong",
+                10,
+                "quality",
+            )
+        )
     elif reliability < 52:
-        signals.append(signal("Reliability", "Model reliability is weak", -8, "ml"))
-
-    if not signals:
-        signals.append(signal("Neutral", "No strong directional signal detected", 0, "neutral"))
+        signals.append(
+            signal(
+                "Reliability",
+                "Model reliability is weak",
+                -8,
+                "quality",
+            )
+        )
 
     return signals
 
@@ -296,7 +325,7 @@ def compute_kayro_score(
         if category in {"technical", "ml", "news"}:
             directional_impacts.append(impact)
         else:
-            quality_impacts.append(abs(impact))
+            quality_impacts.append(impact)
 
     directional_score = sum(directional_impacts)
 
