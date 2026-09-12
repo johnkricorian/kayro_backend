@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.database.models import Opportunity
 from sqlalchemy import func
 from app.services.company_logo import build_company_logo_url
+from app.services.prediction_evaluator import get_scheduled_evaluation_date
 
 def save_opportunities(
     db: Session,
@@ -140,13 +141,27 @@ def get_opportunities(
         .all()
     )
     results: list[dict] = []
+
     for row in rows:
         payload = dict(row.json_payload or {})
         payload["logo_url"] = (
             payload.get("logo_url")
             or build_company_logo_url(row.ticker)
         )
-        results.append(payload)
+
+    expires_at = get_scheduled_evaluation_date(
+        created_at=row.updated_at,
+        forecast_horizon=row.forecast_horizon,
+    )
+
+    payload["expires_at"] = (
+        expires_at.isoformat()
+        if expires_at is not None
+        else None
+    )
+
+    results.append(payload)
+
     return results
 
 def delete_stale_opportunities(
