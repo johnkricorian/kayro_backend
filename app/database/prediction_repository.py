@@ -1866,7 +1866,7 @@ def get_segment_stats() -> dict:
             if _normalize_direction(
                 prediction.predicted_direction
             )
-            in {"bullish", "bearish"}
+            in {"Bullish", "Bearish"}
         ]
 
         def build_segment(
@@ -1968,7 +1968,7 @@ def get_segment_stats() -> dict:
             for prediction in directional
             if _normalize_direction(
                 prediction.predicted_direction
-            ) == "bullish"
+            ) == "Bullish"
         ]
 
         bearish = [
@@ -1976,7 +1976,7 @@ def get_segment_stats() -> dict:
             for prediction in directional
             if _normalize_direction(
                 prediction.predicted_direction
-            ) == "bearish"
+            ) == "Bearish"
         ]
 
         return {

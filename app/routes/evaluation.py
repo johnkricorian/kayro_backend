@@ -14,6 +14,7 @@ from app.database.prediction_repository import (
     get_ticker_stats,
     get_leaderboard,
     get_viability_stats,
+    get_segment_stats
 )
 
 
@@ -193,6 +194,10 @@ def get_performance() -> dict:
             },
         }
     }
+
+@router.get("/segments")
+def get_evaluation_segments() -> dict:
+    return get_segment_stats()
 
 
 @router.get("/ticker/{ticker}")
