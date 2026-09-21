@@ -1842,6 +1842,204 @@ def _percentage_average(
         2,
     )
 
+def get_segment_stats() -> dict:
+    db: Session = SessionLocal()
+
+    try:
+        predictions = (
+            db.query(Prediction)
+            .filter(
+                Prediction.created_at
+                >= PROSPECTIVE_VALIDATION_START,
+                Prediction.prediction_correct.is_not(None),
+            )
+            .order_by(
+                Prediction.created_at.asc(),
+                Prediction.id.asc(),
+            )
+            .all()
+        )
+
+        directional = [
+            prediction
+            for prediction in predictions
+            if _normalize_direction(
+                prediction.predicted_direction
+            )
+            in {"bullish", "bearish"}
+        ]
+
+        def build_segment(
+            label: str,
+            items: list[Prediction],
+        ) -> dict:
+            strategy_returns = [
+                prediction.strategy_return
+                for prediction in items
+                if prediction.strategy_return is not None
+            ]
+
+            stock_returns = [
+                prediction.stock_return
+                for prediction in items
+                if prediction.stock_return is not None
+            ]
+
+            alphas = [
+                prediction.alpha
+                for prediction in items
+                if prediction.alpha is not None
+            ]
+
+            correct = sum(
+                prediction.prediction_correct is True
+                for prediction in items
+            )
+
+            wins = sum(
+                strategy_return > 0
+                for strategy_return in strategy_returns
+            )
+
+            return {
+                "label": label,
+                "n": len(items),
+                "accuracy": _percentage_ratio(
+                    correct,
+                    len(items),
+                ),
+                "average_stock_return": (
+                    _percentage_average(
+                        stock_returns
+                    )
+                ),
+                "average_strategy_return": (
+                    _percentage_average(
+                        strategy_returns
+                    )
+                ),
+                "average_alpha": (
+                    _percentage_average(
+                        alphas
+                    )
+                ),
+                "win_rate": _percentage_ratio(
+                    wins,
+                    len(strategy_returns),
+                ),
+            }
+
+        def confidence_between(
+            minimum: float,
+            maximum: float | None = None,
+        ) -> list[Prediction]:
+            return [
+                prediction
+                for prediction in directional
+                if (
+                    prediction.direction_confidence
+                    >= minimum
+                    and (
+                        maximum is None
+                        or prediction.direction_confidence
+                        < maximum
+                    )
+                )
+            ]
+
+        def score_between(
+            minimum: int,
+            maximum: int | None = None,
+        ) -> list[Prediction]:
+            return [
+                prediction
+                for prediction in directional
+                if (
+                    prediction.qeyro_score >= minimum
+                    and (
+                        maximum is None
+                        or prediction.qeyro_score < maximum
+                    )
+                )
+            ]
+
+        bullish = [
+            prediction
+            for prediction in directional
+            if _normalize_direction(
+                prediction.predicted_direction
+            ) == "bullish"
+        ]
+
+        bearish = [
+            prediction
+            for prediction in directional
+            if _normalize_direction(
+                prediction.predicted_direction
+            ) == "bearish"
+        ]
+
+        return {
+            "sample_size": len(directional),
+
+            "global": build_segment(
+                "All",
+                directional,
+            ),
+
+            "by_direction": [
+                build_segment(
+                    "Bullish",
+                    bullish,
+                ),
+                build_segment(
+                    "Bearish",
+                    bearish,
+                ),
+            ],
+
+            "by_confidence": [
+                build_segment(
+                    "<60%",
+                    confidence_between(0, 60),
+                ),
+                build_segment(
+                    "60-69%",
+                    confidence_between(60, 70),
+                ),
+                build_segment(
+                    "70-79%",
+                    confidence_between(70, 80),
+                ),
+                build_segment(
+                    ">=80%",
+                    confidence_between(80),
+                ),
+            ],
+
+            "by_qeyro_score": [
+                build_segment(
+                    "<50",
+                    score_between(0, 50),
+                ),
+                build_segment(
+                    "50-64",
+                    score_between(50, 65),
+                ),
+                build_segment(
+                    "65-79",
+                    score_between(65, 80),
+                ),
+                build_segment(
+                    ">=80",
+                    score_between(80),
+                ),
+            ],
+        }
+
+    finally:
+        db.close()
+
 
 def _empty_confusion_matrix() -> dict:
     return {
