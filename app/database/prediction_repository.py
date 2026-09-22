@@ -1891,6 +1891,12 @@ def get_segment_stats() -> dict:
                 if prediction.alpha is not None
             ]
 
+            strategy_alphas = [
+                prediction.strategy_alpha
+                for prediction in items
+                if prediction.strategy_alpha is not None
+            ]
+
             correct = sum(
                 prediction.prediction_correct is True
                 for prediction in items
@@ -1921,6 +1927,11 @@ def get_segment_stats() -> dict:
                 "average_alpha": (
                     _percentage_average(
                         alphas
+                    )
+                ),
+                "average_strategy_alpha": (
+                    _percentage_average(
+                        strategy_alphas
                     )
                 ),
                 "win_rate": _percentage_ratio(
@@ -2033,6 +2044,41 @@ def get_segment_stats() -> dict:
                 build_segment(
                     ">=80",
                     score_between(80),
+                ),
+            ],
+
+            "by_direction_and_confidence": [
+                build_segment(
+                    "Bullish <60%",
+                    [
+                        prediction
+                        for prediction in bullish
+                        if prediction.direction_confidence < 60
+                    ],
+                ),
+                build_segment(
+                    "Bullish >=60%",
+                    [
+                        prediction
+                        for prediction in bullish
+                        if prediction.direction_confidence >= 60
+                    ],
+                ),
+                build_segment(
+                    "Bearish <60%",
+                    [
+                        prediction
+                        for prediction in bearish
+                        if prediction.direction_confidence < 60
+                    ],
+                ),
+                build_segment(
+                    "Bearish >=60%",
+                    [
+                        prediction
+                        for prediction in bearish
+                        if prediction.direction_confidence >= 60
+                    ],
                 ),
             ],
         }
